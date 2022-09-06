@@ -1,0 +1,56 @@
+{
+  "name": "amazing-gif",
+  "version": "0.0.1",
+  "description": "",
+  "main": "./dist/index.cjs.js",
+  "module": "./dist/index.esm.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "rollup -w -c",
+    "build": "rollup -c",
+    "test": "anywhere -p 8445 -s &",
+    "prepublish": "yarn version && yarn build"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@commitlint/cli": "^17.1.2",
+    "@commitlint/config-conventional": "^17.1.0",
+    "@rollup/plugin-commonjs": "^22.0.2",
+    "@rollup/plugin-node-resolve": "^13.3.0",
+    "@rollup/plugin-typescript": "^8.4.0",
+    "@typescript-eslint/eslint-plugin": "^5.36.1",
+    "@typescript-eslint/parser": "^5.36.1",
+    "eslint": "^8.23.0",
+    "husky": "3.1.0",
+    "lint-staged": "^13.0.3",
+    "prettier": "^2.7.1",
+    "rollup": "^2.79.0",
+    "rollup-plugin-cleaner": "^1.0.0",
+    "rollup-plugin-json": "^4.0.0",
+    "rollup-plugin-uglify": "^6.0.4",
+    "typescript": "^4.8.2"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged",
+      "commit-msg": "commitlint -E HUSKY_GIT_PARAMS"
+    }
+  },
+  "commitlint": {
+    "extends": [
+      "@commitlint/config-conventional"
+    ]
+  },
+  "lint-staged": {
+    "*.{ts,js}": [
+      "node --max_old_space_size=1024 ./node_modules/.bin/prettier -w",
+      "node --max_old_space_size=1024 ./node_modules/.bin/eslint --fix --color",
+      "git add"
+    ]
+  }
+}
