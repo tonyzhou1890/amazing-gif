@@ -1,6 +1,6 @@
 {
   "name": "amazing-gif",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "",
   "main": "./dist/index.cjs.js",
   "module": "./dist/index.esm.js",
@@ -22,7 +22,12 @@
     "url": "https://github.com/tonyzhou1890/amazing-gif/issues"
   },
   "homepage": "https://github.com/tonyzhou1890/amazing-gif#readme",
-  "keywords": ["amazing-gif", "gif-player", "gif-parser", ""],
+  "keywords": [
+    "amazing-gif",
+    "gif-player",
+    "gif-parser",
+    ""
+  ],
   "author": "tonyzhou1890",
   "license": "ISC",
   "devDependencies": {
