@@ -25,8 +25,6 @@ export interface Config {
     onEnd?: CallbackFunc;
     onBeforePause: CallbackFunc;
     onPause?: CallbackFunc;
-    nextFrame?: CallbackFunc;
-    prevFrame?: CallbackFunc;
 }
 /**
  * read ctrl type

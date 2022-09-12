@@ -56,7 +56,7 @@ declare class AMZGif {
     /**
      * jump
      */
-    jump(frameIndex: number): Promise<string | void>;
+    jump(frameIndex: number): string | void;
     /**
      * set speed
      */

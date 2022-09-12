@@ -154,7 +154,7 @@ const GifLZW = {
 function parser(gifBuffer, errorCallback) {
     if (!(gifBuffer instanceof ArrayBuffer)) {
         if (isFunc(errorCallback)) {
-            return errorCallback(errMsgs.gifDataTypeError);
+            return errorCallback(errMsgs.gifDataTypeError, 'onDataError');
         }
         else {
             throw new Error(errMsgs.gifDataTypeError);
@@ -191,7 +191,7 @@ function parser(gifBuffer, errorCallback) {
             // read header
             const header = readHeader(buf, readCtrl);
             if (!header.isGif) {
-                return errorCallback(errMsgs.notGif);
+                return errorCallback(errMsgs.notGif, 'onDataError');
             }
             Object.assign(gifData.header, header);
         }
@@ -940,7 +940,6 @@ class AMZGif {
                 yield this._getGif().catch((e) => this._errCall(e.message, 'onLoadError'));
             }
             if (this._gifBuffer === null) {
-                this._errCall(errMsgs.gifEmpty, 'onDataError');
                 return;
             }
             // try parse gifBuffer
@@ -1019,21 +1018,19 @@ class AMZGif {
      * jump
      */
     jump(frameIndex) {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (!this.gifData) {
-                return this._errCall(errMsgs.notReady, 'onError');
-            }
-            if (typeof frameIndex !== 'number') {
-                return this._errCall(errMsgs.wrongParam, 'onError');
-            }
-            if (this.isRendering)
-                return errMsgs.isRendering;
-            if (frameIndex < 0 || frameIndex > this.gifData.frames.length - 1) {
-                frameIndex = 0;
-            }
-            this._currFrame = frameIndex;
-            this._renderFrame();
-        });
+        if (!this.gifData) {
+            return this._errCall(errMsgs.notReady, 'onError');
+        }
+        if (typeof frameIndex !== 'number') {
+            return this._errCall(errMsgs.wrongParam, 'onError');
+        }
+        if (this.isRendering)
+            return errMsgs.isRendering;
+        if (frameIndex < 0 || frameIndex > this.gifData.frames.length - 1) {
+            frameIndex = 0;
+        }
+        this._currFrame = frameIndex;
+        this._renderFrame();
     }
     /**
      * set speed
@@ -1133,6 +1130,9 @@ class AMZGif {
                 try {
                     const res = yield fetch(this._config.src);
                     this._gifBuffer = yield res.arrayBuffer();
+                    if (isFunc(this._config.onLoad)) {
+                        this._config.onLoad();
+                    }
                 }
                 catch (e) {
                     this._errCall(e === null || e === void 0 ? void 0 : e.message, 'onLoadError');
