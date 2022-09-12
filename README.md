@@ -1,5 +1,7 @@
 # amazing-gif
 
+JavaScript GIF parser and player.
+
 ## 简介
 
 对于 gif 图片，浏览器是原生支持的，但没有提供暂停、恢复播放等功能。此包让播放 gif 可以像播放视频一样进行暂停、恢复播放、上一帧、下一帧、倍速等操作。
