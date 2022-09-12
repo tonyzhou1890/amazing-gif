@@ -1,3 +1,3 @@
-export default function rAF(callback: Function): {
+export default function rAF(callbackQueue: Array<Function>): {
     cancel(): void;
 };

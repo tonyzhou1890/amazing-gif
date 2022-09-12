@@ -1,23 +1,31 @@
 import { Config, GifData } from './types';
 declare class AMZGif {
     constructor(config: Config);
+    speedList: number[];
     _config: Config;
     _imgEl: HTMLImageElement | null;
     _canvas: HTMLCanvasElement | null;
     _ctx: CanvasRenderingContext2D | null;
     _offscreenCanvas: HTMLCanvasElement | null;
     _offscreenCtx: CanvasRenderingContext2D | null;
-    _gifLoading: boolean;
     _gifBuffer: ArrayBuffer | null;
     gifData: GifData | null;
-    _frameTotal: number;
     _currFrame: number;
     _nextUpdateTime: number;
+    _rAFCallbackQueue: Array<Function>;
+    /**
+     * loading gif
+     */
+    isLoading: boolean;
     /**
      * @member isPlaying
      * @description play status
      */
     isPlaying: boolean;
+    /**
+     * is rendering
+     */
+    isRendering: boolean;
     /**
      * @member init
      */
@@ -37,6 +45,23 @@ declare class AMZGif {
      */
     pause(): Promise<void>;
     /**
+     * play next frame munually
+     * @returns
+     */
+    nextFrame(): string | void;
+    /**
+     * play prev frame manually
+     */
+    prevFrame(): string | void;
+    /**
+     * jump
+     */
+    jump(frameIndex: number): Promise<string | void>;
+    /**
+     * set speed
+     */
+    setSpeed(speed: number): boolean;
+    /**
      * togglePlay by
      */
     _togglePlay(): void;
@@ -45,16 +70,7 @@ declare class AMZGif {
      */
     _update(time: number): void;
     _renderFrame(): void;
-    _checkEnd(): true | undefined;
-    /**
-     * play next frame munually
-     * @returns
-     */
-    nextFrame(): void;
-    /**
-     * play prev frame manually
-     */
-    prevFrame(): void;
+    _checkEnd(): boolean;
     /**
      * get gif data
      */

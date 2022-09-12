@@ -38,10 +38,6 @@ export interface Config {
   // (can be Promise,) if result if false, will not stop
   onBeforePause: CallbackFunc
   onPause?: CallbackFunc
-  // play next frame
-  nextFrame?: CallbackFunc
-  // play prev frame
-  prevFrame?: CallbackFunc
 }
 
 /**
@@ -111,4 +107,13 @@ export interface GifData {
     endByte: number
   }
   frames: Array<GifFrameData>
+}
+
+/**
+ * value change type
+ */
+export interface ValueChangeType {
+  key: string
+  oldValue: any
+  newValue: any
 }

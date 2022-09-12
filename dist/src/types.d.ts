@@ -93,4 +93,12 @@ export interface GifData {
     };
     frames: Array<GifFrameData>;
 }
+/**
+ * value change type
+ */
+export interface ValueChangeType {
+    key: string;
+    oldValue: any;
+    newValue: any;
+}
 export {};

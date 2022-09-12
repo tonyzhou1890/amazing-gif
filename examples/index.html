@@ -11,15 +11,40 @@
   <h1>amazing gif examples</h1>
   <div>
     <img id="example1" src="./assets/cat1.gif" alt="">
+    <img id="example2" src="./assets/sample2-cover.jpg" alt="">
+    <div id="container"></div>
   </div>
   <script>
     const amz1 = new AMZGif({
       el: '#example1',
       src: './assets/cat1.gif',
-      // src: './assets/tlc.gif',
-      // src: './assets/arrow.gif',
       speed: 1,
       auto: false
+    })
+    const amz2 = new AMZGif({
+      el: '#example2',
+      src: './assets/sample2.gif',
+      speed: 1,
+      loop: false,
+      auto: true,
+      onEnd() {
+        const container = document.querySelector('#container')
+        container.style.width = amz2._imgEl.style.width
+        container.style.height = amz2._imgEl.style.height
+        for (let i = 0; i < amz2.gifData.frames.length; i++) {
+          const frame = amz2.gifData.frames[i]
+          const c = document.createElement('canvas')
+          const ctx = c.getContext('2d')
+          c.style.width = amz2._imgEl.style.width
+          c.style.height = amz2._imgEl.style.height
+          c.width = amz2._canvas.width
+          c.height = amz2._canvas.height
+          ctx.putImageData(frame.canvasImageData, 0, 0)
+          ctx.font = '16px sans-serif'
+          ctx.fillText(i, 0, 16)
+          container.appendChild(c)
+        }
+      }
     })
   </script>
 </body>

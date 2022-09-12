@@ -4,6 +4,7 @@ import commonjs from "@rollup/plugin-commonjs"
 import json from 'rollup-plugin-json'
 import cleaner from 'rollup-plugin-cleaner';
 import {uglify} from 'rollup-plugin-uglify'
+import svg from 'rollup-plugin-svg'
 
 export default [
   {
@@ -14,7 +15,7 @@ export default [
       entryFileNames: '[name].cjs.js',
       exports: 'auto'
     },
-    plugins: [resolve(), commonjs(), typescript(), json(), cleaner({
+    plugins: [resolve(), commonjs(), typescript(), json(), svg(), cleaner({
       targets: [
         './dist/'
       ]
@@ -27,7 +28,9 @@ export default [
       format: 'esm',
       entryFileNames: '[name].esm.js'
     },
-    plugins: [resolve(), commonjs(), typescript(), json()]
+    plugins: [resolve(), commonjs(), typescript(), json(), svg({
+      base64: true
+    })]
   },
   {
     input: './src/index.ts',
@@ -37,7 +40,9 @@ export default [
       name: 'AMZGif',
       entryFileNames: '[name].umd.js'
     },
-    plugins: [resolve(), commonjs(), typescript(), json()]
+    plugins: [resolve(), commonjs(), typescript(), json(), svg({
+      base64: true
+    })]
   },
   {
     input: './src/index.ts',
@@ -47,6 +52,8 @@ export default [
       name: 'AMZGif',
       entryFileNames: '[name].umd.min.js'
     },
-    plugins: [resolve(), commonjs(), typescript(), json(), uglify()]
+    plugins: [resolve(), commonjs(), typescript(), json(), svg({
+      base64: true
+    }), uglify()]
   }
 ]

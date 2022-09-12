@@ -38,6 +38,20 @@
     function isFunc(f) {
         return typeof f === 'function';
     }
+    const errMsgs = {
+        notReady: '数据未就绪',
+        wrongParam: '参数错误',
+        noGifUrl: '未指定 gif 图片地址',
+        gifEmpty: 'gif 不存在',
+        gifDataTypeError: 'gif 数据类型错误',
+        notGif: '文件非 gif',
+        noConfigEl: '未指定 img 元素',
+        noImg: '未找到 img 元素',
+        notImg: (el) => `元素 ${el} 不是图片`,
+        isRendering: 'isRendering',
+        skinError: '皮肤出错',
+        skinContainerIsSmall: '空间不足以显示皮肤'
+    };
 
     // https://www.cnblogs.com/jiang08/articles/3171319.html
     /**
@@ -146,10 +160,10 @@
     function parser(gifBuffer, errorCallback) {
         if (!(gifBuffer instanceof ArrayBuffer)) {
             if (isFunc(errorCallback)) {
-                return errorCallback('gif 数据类型错误');
+                return errorCallback(errMsgs.gifDataTypeError);
             }
             else {
-                throw new Error('gif 数据类型错误');
+                throw new Error(errMsgs.gifDataTypeError);
             }
         }
         // read gifBuffer as Uint8Array
@@ -183,7 +197,7 @@
                 // read header
                 const header = readHeader(buf, readCtrl);
                 if (!header.isGif) {
-                    return errorCallback('文件非 gif');
+                    return errorCallback(errMsgs.notGif);
                 }
                 Object.assign(gifData.header, header);
             }
@@ -414,8 +428,11 @@
               如果图形控制扩展的透明色标志位为1，那么解码器会通过透明色索引在颜色列表中找到改颜色，标记为透明，当渲染图像时，标记为透明色的颜色将不会绘制，显示下面的背景。
               */
             readCtrl.ptr++;
-            frameData.disposalMethod = buf[readCtrl.ptr] & 0x1c;
-            frameData.userInputFlag = Boolean(buf[readCtrl.ptr] & 0x02);
+            // 4th ~ 6th bit
+            frameData.disposalMethod = (buf[readCtrl.ptr] & 0x1c) >> 2;
+            // 7th bit
+            frameData.userInputFlag = Boolean((buf[readCtrl.ptr] & 0x02) >> 1);
+            // 8th bit
             frameData.transColorFlag = Boolean(buf[readCtrl.ptr] & 0x01);
             frameData.delay = (buf[++readCtrl.ptr] + (buf[++readCtrl.ptr] << 8)) * 10;
             frameData.transColorIdx = buf[++readCtrl.ptr];
@@ -474,7 +491,7 @@
         return frameData;
     }
 
-    function rAF(callback) {
+    function rAF(callbackQueue) {
         const now = performance.now();
         let interval = 1000 / 60;
         let timer = 0;
@@ -482,7 +499,9 @@
         function c(time) {
             if (interval <= time - last) {
                 last = time - ((time - last) % interval);
-                callback(time);
+                callbackQueue.map(callback => {
+                    callback(time);
+                });
             }
             timer = window.requestAnimationFrame(c);
         }
@@ -571,19 +590,19 @@
             let pci = i * 4;
             // whether current pixel in current frame image
             if (x >= frameInfo.left &&
-                x <= (frameInfo.left + frameInfo.width) &&
+                x < (frameInfo.left + frameInfo.width) &&
                 y >= frameInfo.top &&
-                y <= (frameInfo.top + frameInfo.height)) {
+                y < (frameInfo.top + frameInfo.height)) {
+                // frameImageCopy index
+                const ficidx = x - frameInfo.left + (y - frameInfo.top) * frameInfo.width;
                 // if this pixel is transparent, pixel will be filled width the color of previous frame at the same position
-                if (frameInfo.transColorFlag && frameImageCopy[i] === frameInfo.transColorIdx) {
+                if (frameInfo.transColorFlag && frameImageCopy[ficidx] === frameInfo.transColorIdx) {
                     frameImageData[pci] = lastFrameSnapshot.data[pci];
                     frameImageData[pci + 1] = lastFrameSnapshot.data[pci + 1];
                     frameImageData[pci + 2] = lastFrameSnapshot.data[pci + 2];
                     frameImageData[pci + 3] = lastFrameSnapshot.data[pci + 3];
                 }
                 else {
-                    // frameImageCopy index
-                    const ficidx = x - frameInfo.left + (y - frameInfo.top) * frameInfo.width;
                     const color = colorTable[frameImageCopy[ficidx]];
                     frameImageData[pci] = color[0];
                     frameImageData[pci + 1] = color[0 + 1];
@@ -616,14 +635,14 @@
             return undefined;
         }
         // use last frame as background
-        if ([1, 4, 5, 6, 7].includes(lastFrame.disposalMethod)) {
+        if ([1].includes(lastFrame.disposalMethod)) {
             if (lastFrame.canvasImageData)
                 return lastFrame.canvasImageData;
             return generateImageData(gifData, lastFrame, getLastFrameSnapshot(gifData, frameIndex - 1));
         }
         // drop last frame, use last 2 frame
         if (lastFrame.disposalMethod === 3) {
-            return getLastFrameSnapshot(gifData, frameIndex - 2);
+            return getLastFrameSnapshot(gifData, frameIndex - 1);
         }
         return undefined;
     }
@@ -642,6 +661,153 @@
         return currentFrameImage;
     }
 
+    /**
+     * base skin class
+     */
+    class SkinBase {
+        constructor(amzGif) {
+            this.keys = [];
+            this.watch = {};
+            this.amzGif = amzGif;
+            this.cache = {};
+            this.init();
+        }
+        init() {
+            this.dirtyChecking();
+        }
+        /**
+         * check changes of data
+         */
+        dirtyChecking() {
+            const changes = [];
+            let tempValue = null;
+            Object.keys(this.watch).map(key => {
+                tempValue = this.getValue(key);
+                if (this.cache[key] !== tempValue) {
+                    changes.push({
+                        key,
+                        oldValue: this.cache[key],
+                        newValue: tempValue
+                    });
+                }
+            });
+            // notify subscribers
+            changes.map((change) => __awaiter(this, void 0, void 0, function* () {
+                if (isFunc(this.watch[change.key])) {
+                    yield this.watch[change.key](change.newValue, change.oldValue);
+                }
+            }));
+        }
+        /**
+         * get value by key from amzGif
+         */
+        getValue(key) {
+            const path = key.split('.').filter(v => v);
+            let temp = this.amzGif;
+            for (let i = 0; i < path.length; i++) {
+                temp = temp === null || temp === void 0 ? void 0 : temp[path[i]];
+                if (temp === undefined)
+                    break;
+            }
+            return temp;
+        }
+    }
+
+    var playSvg = 'data:image/svg+xml;base64,PHN2ZyB0PSIxNjYyNzg5NjY0NjUyIiBjbGFzcz0iaWNvbiIgdmlld0JveD0iMCAwIDEwMjQgMTAyNCIgdmVyc2lvbj0iMS4xIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHAtaWQ9IjIzNjciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIj48cGF0aCBkPSJNMTI4IDEzOC42NjY2NjdjMC00Ny4yMzIgMzMuMzIyNjY3LTY2LjY2NjY2NyA3NC4xNzYtNDMuNTYyNjY3bDY2My4xNDY2NjcgMzc0Ljk1NDY2N2M0MC45NiAyMy4xNjggNDAuODUzMzMzIDYwLjggMCA4My44ODI2NjZMMjAyLjE3NiA5MjguODk2QzE2MS4yMTYgOTUyLjA2NCAxMjggOTMyLjU2NTMzMyAxMjggODg1LjMzMzMzM3YtNzQ2LjY2NjY2NnoiIGZpbGw9IiMzRDNEM0QiIHAtaWQ9IjIzNjgiPjwvcGF0aD48L3N2Zz4=';
+
+    var loadingSvg = 'data:image/svg+xml;base64,PHN2ZyB0PSIxNjYyNzg5NzI0Njc4IiBjbGFzcz0iaWNvbiIgdmlld0JveD0iMCAwIDEwMjQgMTAyNCIgdmVyc2lvbj0iMS4xIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHAtaWQ9IjM0NDEiIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIj48cGF0aCBkPSJNNTEyLjUxMSAyMS40ODNjLTI3MS4xNjMgMC00OTEuMDI4IDIxOS44Ni00OTEuMDI4IDQ5MS4wMjggMCAyNzEuMTczIDIxOS44NTYgNDkxLjAzIDQ5MS4wMjggNDkxLjAzIDI2LjU1NCAwIDQ4LjA4LTIxLjUyNyA0OC4wOC00OC4wOCAwLTI2LjU1NC0yMS41MjYtNDguMDgtNDguMDgtNDguMDgtMjE4LjA2NSAwLTM5NC44NjktMTc2LjgwNC0zOTQuODY5LTM5NC44NyAwLTIxOC4wNiAxNzYuODEzLTM5NC44NjkgMzk0Ljg3LTM5NC44NjkgMjE4LjA2NSAwIDM5NC44NjkgMTc2LjgwNCAzOTQuODY5IDM5NC44NyAwIDI2LjU1MyAyMS41MjYgNDguMDggNDguMDggNDguMDggMjYuNTUzIDAgNDguMDgtMjEuNTI3IDQ4LjA4LTQ4LjA4IDAtMjcxLjE3My0yMTkuODU3LTQ5MS4wMy00OTEuMDMtNDkxLjAzeiIgcC1pZD0iMzQ0MiI+PC9wYXRoPjwvc3ZnPg==';
+
+    class BasicSkin extends SkinBase {
+        constructor(amzGif) {
+            super(amzGif);
+            this.playDiv = null;
+            this.playImg = null;
+            this.loadingDiv = null;
+            this.loadingImg = null;
+            this.loadingImgRoate = 0;
+            this.handlePlay = this.handlePlay.bind(this);
+            this.dirtyChecking = this.dirtyChecking.bind(this);
+            this.init();
+            this.setWatch();
+        }
+        init() {
+            const container = this.amzGif._canvas.parentElement;
+            if (!container) {
+                this.amzGif._errCall(errMsgs.skinError, 'onError');
+                return;
+            }
+            const rect = container.getBoundingClientRect();
+            const playDiv = this.genMask(rect.width, rect.height);
+            playDiv.style.zIndex = '1';
+            playDiv.style.display = 'none';
+            playDiv.style.cursor = 'pointer';
+            playDiv.addEventListener('click', this.handlePlay.bind(this));
+            this.playDiv = playDiv;
+            const playImg = document.createElement('img');
+            playImg.src = playSvg;
+            playImg.style.width = '60px';
+            playImg.style.height = '60px';
+            playImg.style.opacity = '0.6';
+            this.playImg = playImg;
+            playDiv.appendChild(playImg);
+            container.appendChild(playDiv);
+            const loadingDiv = this.genMask(rect.width, rect.height);
+            this.loadingDiv = loadingDiv;
+            loadingDiv.style.zIndex = '2';
+            loadingDiv.style.display = 'none';
+            const loadingImg = document.createElement('img');
+            this.loadingImg = loadingImg;
+            loadingImg.src = loadingSvg;
+            loadingImg.style.width = '60px';
+            loadingImg.style.height = '60px';
+            loadingImg.style.opacity = '0.6';
+            loadingDiv.appendChild(loadingImg);
+            container.appendChild(loadingDiv);
+            this.amzGif._rAFCallbackQueue.push(this.dirtyChecking.bind(this));
+        }
+        genMask(width, height) {
+            const div = document.createElement('div');
+            div.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
+            div.style.width = width + 'px';
+            div.style.height = height + 'px';
+            div.style.position = 'absolute';
+            div.style.left = '0';
+            div.style.top = '0';
+            div.style.display = 'flex';
+            div.style.justifyContent = 'center';
+            div.style.alignItems = 'center';
+            return div;
+        }
+        setWatch() {
+            this.watch['isPlaying'] = (newValue) => {
+                if (this.playDiv) {
+                    this.playDiv.style.display = newValue || this.amzGif.isLoading ? 'none' : 'flex';
+                }
+            };
+            this.watch['isLoading'] = (newValue) => {
+                if (this.loadingDiv) {
+                    this.loadingDiv.style.display = newValue ? 'flex' : 'none';
+                    if (newValue && this.loadingImg) {
+                        this.loadingImg.style.transform = `rotate(${this.loadingImgRoate += 1}deg)`;
+                    }
+                }
+            };
+        }
+        handlePlay() {
+            if (!this.amzGif.isPlaying) {
+                this.amzGif.play();
+            }
+        }
+    }
+
+    function initSkin (amzGif) {
+        if (amzGif._config.interactive) {
+            if (amzGif._config.skin === 'basic') {
+                return new BasicSkin(amzGif);
+            }
+        }
+    }
+
     const defaultConfig = {
         loop: true,
         auto: false,
@@ -652,19 +818,7 @@
     const speedList = [0.5, 1.0, 1.5, 2.0];
     class AMZGif {
         constructor(config) {
-            this._gifLoading = false;
-            this._frameTotal = 0;
-            this._currFrame = -1;
-            this._nextUpdateTime = performance.now();
-            /**
-             * @member isPlaying
-             * @description play status
-             */
-            this.isPlaying = false;
-            this._config = Object.assign(Object.assign({}, defaultConfig), config);
-            if (!speedList.includes(this._config.speed)) {
-                this._config.speed = 1;
-            }
+            this.speedList = speedList;
             this._imgEl = null;
             this._canvas = null;
             this._ctx = null;
@@ -672,6 +826,26 @@
             this._offscreenCtx = null;
             this._gifBuffer = null;
             this.gifData = null;
+            this._currFrame = -1;
+            this._nextUpdateTime = performance.now();
+            this._rAFCallbackQueue = [];
+            /**
+             * loading gif
+             */
+            this.isLoading = false;
+            /**
+             * @member isPlaying
+             * @description play status
+             */
+            this.isPlaying = false;
+            /**
+             * is rendering
+             */
+            this.isRendering = false;
+            this._config = Object.assign(Object.assign({}, defaultConfig), config);
+            if (!speedList.includes(this._config.speed)) {
+                this._config.speed = 1;
+            }
             this._update = this._update.bind(this);
             this._renderFrame = this._renderFrame.bind(this);
             this._togglePlay = this._togglePlay.bind(this);
@@ -681,10 +855,11 @@
          * @member init
          */
         _init() {
+            var _a;
             // init element
             // check img element
             if (!this._config.el) {
-                this._errCall('未指定 img 元素', 'onError');
+                this._errCall(errMsgs.noConfigEl, 'onError');
                 return;
             }
             if (this._config.el instanceof HTMLImageElement) {
@@ -693,36 +868,42 @@
             if (typeof this._config.el === 'string') {
                 const el = document.querySelector(this._config.el);
                 if (!el) {
-                    this._errCall('未找到 img 元素 ' + this._config.el, 'onError');
+                    this._errCall(errMsgs.noImg + this._config.el, 'onError');
                     return;
                 }
                 if (!(el instanceof HTMLImageElement)) {
-                    this._errCall('元素 ' + this._config.el + ' 不是图片', 'onError');
+                    this._errCall(errMsgs.notImg(this._config.el), 'onError');
                     return;
                 }
                 this._imgEl = el;
             }
-            this._initCanvas();
-            this._initContainer();
-            // init controller
-            // if config.auto is true, play gif at once
-            if (this._config.auto === true) {
-                this.play();
-            }
-            rAF(this._update);
+            (_a = this._imgEl) === null || _a === void 0 ? void 0 : _a.addEventListener('load', () => {
+                this._initCanvas();
+                this._initContainer();
+                // init controller
+                initSkin(this);
+                // if config.auto is true, play gif at once
+                if (this._config.auto === true) {
+                    this.play();
+                }
+                this._rAFCallbackQueue.push(this._update);
+                rAF(this._rAFCallbackQueue);
+            });
         }
         /**
          * set width and height，and create canvas
          */
         _initCanvas() {
-            var _a, _b;
+            var _a, _b, _c, _d, _e, _f, _g;
             const img = this._imgEl;
             // get width and height
             const rect = img.getBoundingClientRect();
+            console.log(rect);
             this._config.width = typeof this._config.width === 'number' ? this._config.width : (_a = rect === null || rect === void 0 ? void 0 : rect.width) !== null && _a !== void 0 ? _a : 0;
             this._config.height = typeof this._config.height === 'number' ? this._config.height : (_b = rect === null || rect === void 0 ? void 0 : rect.height) !== null && _b !== void 0 ? _b : 0;
             // create canvas
             this._canvas = document.createElement('canvas');
+            this._canvas.style.cursor = 'pointer';
             this._canvas.addEventListener('click', this._togglePlay);
             this._canvas.width = this._config.width;
             this._canvas.height = this._config.height;
@@ -730,16 +911,16 @@
             this._canvas.style.height = this._config.height + 'px';
             this._ctx = this._canvas.getContext('2d');
             this._ctx.globalCompositeOperation = 'copy';
-            img.addEventListener('load', () => {
-                var _a, _b, _c, _d, _e;
-                (_a = this._ctx) === null || _a === void 0 ? void 0 : _a.drawImage(img, 0, 0, (_b = rect === null || rect === void 0 ? void 0 : rect.width) !== null && _b !== void 0 ? _b : this._config.width, (_c = rect === null || rect === void 0 ? void 0 : rect.height) !== null && _c !== void 0 ? _c : this._config.height, 0, 0, (_d = this._config.width) !== null && _d !== void 0 ? _d : rect === null || rect === void 0 ? void 0 : rect.width, (_e = this._config.height) !== null && _e !== void 0 ? _e : rect === null || rect === void 0 ? void 0 : rect.height);
-            });
+            (_c = this._ctx) === null || _c === void 0 ? void 0 : _c.drawImage(img, 0, 0, (_d = rect === null || rect === void 0 ? void 0 : rect.width) !== null && _d !== void 0 ? _d : this._config.width, (_e = rect === null || rect === void 0 ? void 0 : rect.height) !== null && _e !== void 0 ? _e : this._config.height, 0, 0, (_f = this._config.width) !== null && _f !== void 0 ? _f : rect === null || rect === void 0 ? void 0 : rect.width, (_g = this._config.height) !== null && _g !== void 0 ? _g : rect === null || rect === void 0 ? void 0 : rect.height);
         }
         _initContainer() {
             var _a;
             const img = this._imgEl;
             // create container
             const container = document.createElement('div');
+            if (img.id) {
+                container.id = img.id;
+            }
             container.style.width = this._config.width + 'px';
             container.style.height = this._config.height + 'px';
             container.style.position = 'relative';
@@ -760,12 +941,12 @@
                 // check gifBuffer, if it is null, load gif first
                 if (this._gifBuffer === null) {
                     if (!this._config.src) {
-                        return this._errCall('未指定 gif 图片地址', 'onError');
+                        return this._errCall(errMsgs.noGifUrl, 'onError');
                     }
                     yield this._getGif().catch((e) => this._errCall(e.message, 'onLoadError'));
                 }
                 if (this._gifBuffer === null) {
-                    this._errCall('gif 不存在', 'onDataError');
+                    this._errCall(errMsgs.gifEmpty, 'onDataError');
                     return;
                 }
                 // try parse gifBuffer
@@ -786,6 +967,9 @@
                 }
                 this.isPlaying = true;
                 this._nextUpdateTime = Math.max(this._nextUpdateTime, performance.now());
+                if (this._checkEnd()) {
+                    this._currFrame = -1;
+                }
                 if (isFunc(this._config.onPlay)) {
                     this._config.onPlay();
                 }
@@ -808,6 +992,66 @@
             });
         }
         /**
+         * play next frame munually
+         * @returns
+         */
+        nextFrame() {
+            if (!this.gifData || !this._ctx || !this._offscreenCtx) {
+                return this._errCall(errMsgs.notReady, 'onError');
+            }
+            if (this.isRendering)
+                return errMsgs.isRendering;
+            this._currFrame = (this._currFrame + 1) % this.gifData.frames.length;
+            this._renderFrame();
+            this._nextUpdateTime = performance.now() + this.gifData.frames[this._currFrame].delay / this._config.speed;
+        }
+        /**
+         * play prev frame manually
+         */
+        prevFrame() {
+            if (!this.gifData || !this._ctx || !this._offscreenCtx) {
+                return this._errCall(errMsgs.notReady, 'onError');
+            }
+            if (this.isRendering)
+                return errMsgs.isRendering;
+            this._currFrame--;
+            if (this._currFrame < 0) {
+                this._currFrame = this.gifData.frames.length - 1;
+            }
+            this._renderFrame();
+            this._nextUpdateTime = performance.now() + this.gifData.frames[this._currFrame].delay / this._config.speed;
+        }
+        /**
+         * jump
+         */
+        jump(frameIndex) {
+            return __awaiter(this, void 0, void 0, function* () {
+                if (!this.gifData) {
+                    return this._errCall(errMsgs.notReady, 'onError');
+                }
+                if (typeof frameIndex !== 'number') {
+                    return this._errCall(errMsgs.wrongParam, 'onError');
+                }
+                if (this.isRendering)
+                    return errMsgs.isRendering;
+                if (frameIndex < 0 || frameIndex > this.gifData.frames.length - 1) {
+                    frameIndex = 0;
+                }
+                this._currFrame = frameIndex;
+                this._renderFrame();
+            });
+        }
+        /**
+         * set speed
+         */
+        setSpeed(speed) {
+            if (this.speedList.includes(speed)) {
+                this._config.speed = speed;
+                return true;
+            }
+            return false;
+        }
+        /**
          * togglePlay by
          */
         _togglePlay() {
@@ -824,14 +1068,19 @@
          * update
          */
         _update(time) {
-            if (!this.isPlaying || !this.gifData || !this._ctx || !this._offscreenCtx || document.hidden)
+            if (!this.isPlaying || this.isRendering || !this.gifData || !this._ctx || !this._offscreenCtx || document.hidden)
                 return;
             // If the time has not yet arrived, no action
             if (this._nextUpdateTime > time)
                 return;
             this._currFrame++;
-            if (this._checkEnd())
+            if (this._checkEnd()) {
+                this.isPlaying = false;
+                if (isFunc(this._config.onEnd)) {
+                    this._config.onEnd();
+                }
                 return;
+            }
             this._renderFrame();
             // set nextUpdateTime
             while (this._nextUpdateTime <= time) {
@@ -839,6 +1088,10 @@
                 if (this._nextUpdateTime <= time) {
                     this._currFrame++;
                     if (this._checkEnd()) {
+                        this.isPlaying = false;
+                        if (isFunc(this._config.onEnd)) {
+                            this._config.onEnd();
+                        }
                         // render the last frame
                         this._currFrame = this.gifData.frames.length - 1;
                         this._renderFrame();
@@ -851,57 +1104,28 @@
             const ctx = this._ctx;
             const offscreenCtx = this._offscreenCtx;
             // render will take some time
-            const tempIsPlaying = this.isPlaying;
-            this.isPlaying = false;
+            this.isRendering = true;
             render(ctx, offscreenCtx, gifData, this._currFrame);
-            this.isPlaying = tempIsPlaying;
+            this.isRendering = false;
         }
         _checkEnd() {
             if (this._currFrame > (this.gifData.frames.length - 1)) {
                 if (this._config.loop !== false) {
                     this._currFrame = 0;
+                    return false;
                 }
                 else {
-                    this.isPlaying = false;
-                    if (isFunc(this._config.onEnd)) {
-                        this._config.onEnd();
-                    }
                     return true;
                 }
             }
-        }
-        /**
-         * play next frame munually
-         * @returns
-         */
-        nextFrame() {
-            if (!this.gifData || !this._ctx || !this._offscreenCtx) {
-                return this._errCall('数据未就绪', 'onError');
-            }
-            this._currFrame = (this._currFrame + 1) % this.gifData.frames.length;
-            this._renderFrame();
-            this._nextUpdateTime = performance.now() + this.gifData.frames[this._currFrame].delay / this._config.speed;
-        }
-        /**
-         * play prev frame manually
-         */
-        prevFrame() {
-            if (!this.gifData || !this._ctx || !this._offscreenCtx) {
-                return this._errCall('数据未就绪', 'onError');
-            }
-            this._currFrame--;
-            if (this._currFrame < 0) {
-                this._currFrame = this.gifData.frames.length - 1;
-            }
-            this._renderFrame();
-            this._nextUpdateTime = performance.now() + this.gifData.frames[this._currFrame].delay / this._config.speed;
+            return false;
         }
         /**
          * get gif data
          */
         _getGif() {
             return __awaiter(this, void 0, void 0, function* () {
-                this._gifLoading = true;
+                this.isLoading = true;
                 if (isFunc(this._config.httpRequest)) {
                     try {
                         const blob = yield this._config.httpRequest(this._config.src);
@@ -920,7 +1144,7 @@
                         this._errCall(e === null || e === void 0 ? void 0 : e.message, 'onLoadError');
                     }
                 }
-                this._gifLoading = false;
+                this.isLoading = false;
             });
         }
         /**

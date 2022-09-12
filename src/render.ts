@@ -75,19 +75,19 @@ export function generateImageData(gifData: GifData, frameInfo: GifFrameData, las
     // whether current pixel in current frame image
     if (
       x >= frameInfo.left &&
-      x <= (frameInfo.left + frameInfo.width) &&
+      x < (frameInfo.left + frameInfo.width) &&
       y >= frameInfo.top &&
-      y <= (frameInfo.top + frameInfo.height)
+      y < (frameInfo.top + frameInfo.height)
     ) {
+      // frameImageCopy index
+      const ficidx = x - frameInfo.left + (y - frameInfo.top) * frameInfo.width
       // if this pixel is transparent, pixel will be filled width the color of previous frame at the same position
-      if (frameInfo.transColorFlag && frameImageCopy[i] === frameInfo.transColorIdx) {
+      if (frameInfo.transColorFlag && frameImageCopy[ficidx] === frameInfo.transColorIdx) {
         frameImageData[pci] = lastFrameSnapshot.data[pci]
         frameImageData[pci + 1] = lastFrameSnapshot.data[pci + 1]
         frameImageData[pci + 2] = lastFrameSnapshot.data[pci + 2]
         frameImageData[pci + 3] = lastFrameSnapshot.data[pci + 3]
       } else {
-        // frameImageCopy index
-        const ficidx = x - frameInfo.left + (y - frameInfo.top) * frameInfo.width
         const color = colorTable[frameImageCopy[ficidx]]
         frameImageData[pci] = color[0]
         frameImageData[pci + 1] = color[0 + 1]
@@ -119,13 +119,13 @@ export function getLastFrameSnapshot(gifData: GifData, frameIndex: number): unde
     return undefined
   }
   // use last frame as background
-  if ([1, 4, 5, 6, 7].includes(lastFrame.disposalMethod)) {
+  if ([1].includes(lastFrame.disposalMethod)) {
     if (lastFrame.canvasImageData) return lastFrame.canvasImageData
     return generateImageData(gifData, lastFrame, getLastFrameSnapshot(gifData, frameIndex - 1))
   }
   // drop last frame, use last 2 frame
   if (lastFrame.disposalMethod === 3) {
-    return getLastFrameSnapshot(gifData, frameIndex - 2)
+    return getLastFrameSnapshot(gifData, frameIndex - 1)
   }
   return undefined
 }

@@ -1,5 +1,5 @@
 import { ReadCtrlType, GifHeaderInfo, GifFrameData, GifData } from "./types";
-import { isFunc } from "./helpers";
+import { errMsgs, isFunc } from "./helpers";
 import { GifLZW } from "./lzw";
 
 /**
@@ -10,9 +10,9 @@ import { GifLZW } from "./lzw";
 export default function parser(gifBuffer: ArrayBuffer, errorCallback: Function) {
   if (!(gifBuffer instanceof ArrayBuffer)) {
     if (isFunc(errorCallback)) {
-      return errorCallback('gif 数据类型错误')
+      return errorCallback(errMsgs.gifDataTypeError, 'onDataError')
     } else {
-      throw new Error('gif 数据类型错误')
+      throw new Error(errMsgs.gifDataTypeError)
     }
   }
 
@@ -47,7 +47,7 @@ export default function parser(gifBuffer: ArrayBuffer, errorCallback: Function) 
       // read header
       const header = readHeader(buf, readCtrl)
       if (!header.isGif) {
-        return errorCallback('文件非 gif')
+        return errorCallback(errMsgs.notGif, 'onDataError')
       }
       Object.assign(gifData.header, header)
     } else if (readCtrl.ptr === 6) {
@@ -278,8 +278,11 @@ function readFrame(buf: Uint8Array, readCtrl: ReadCtrlType) {
       如果图形控制扩展的透明色标志位为1，那么解码器会通过透明色索引在颜色列表中找到改颜色，标记为透明，当渲染图像时，标记为透明色的颜色将不会绘制，显示下面的背景。
       */
     readCtrl.ptr++
-    frameData.disposalMethod = buf[readCtrl.ptr] & 0x1c
-    frameData.userInputFlag = Boolean(buf[readCtrl.ptr] & 0x02)
+    // 4th ~ 6th bit
+    frameData.disposalMethod = (buf[readCtrl.ptr] & 0x1c) >> 2
+    // 7th bit
+    frameData.userInputFlag = Boolean((buf[readCtrl.ptr] & 0x02) >> 1)
+    // 8th bit
     frameData.transColorFlag = Boolean(buf[readCtrl.ptr] & 0x01)
     frameData.delay = (buf[++readCtrl.ptr] + (buf[++readCtrl.ptr] << 8)) * 10
     frameData.transColorIdx = buf[++readCtrl.ptr]
