@@ -121,7 +121,7 @@ const amz1 = new AMZGif({
   filter: AMZGif.filter.grayscale
 })
 ```
-|滤镜|方法|
+|滤镜|说明|
 |--|--|
 |grayscale|灰度滤镜|
 |blackAndWhite|黑白滤镜|
