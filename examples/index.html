@@ -9,42 +9,54 @@
 </head>
 <body>
   <h1>amazing gif examples</h1>
+  <h2>example:</h2>
   <div>
+    <div>
+      <label>滤镜：</label>
+      <select id="filter-select">
+        <option value="">--选择滤镜--</option>
+        <option value="grayscale">灰度</option>
+        <option value="blackAndWhite">黑白</option>
+        <option value="reverse">反向</option>
+        <option value="decolorizing">去色</option>
+        <option value="monochromeRed">单色红</option>
+        <option value="monochromeGreen">单色绿</option>
+        <option value="monochromeBlue">单色蓝</option>
+        <option value="nostalgic">怀旧</option>
+        <option value="cast">熔铸</option>
+        <option value="frozen">冰冻</option>
+        <option value="comic">连环画</option>
+        <option value="brown">褐色</option>
+      </select>
+    </div>
     <img id="example1" src="./assets/cat1.gif" alt="">
+  </div>
+  <h2>example:</h2>
+  <div>
     <img id="example2" src="./assets/sample2-cover.jpg" alt="">
-    <div id="container"></div>
   </div>
   <script>
+    // 样例1
     const amz1 = new AMZGif({
       el: '#example1',
       src: './assets/cat1.gif',
       speed: 1,
-      auto: false
+      auto: true,
+      skin: 'basic'
     })
+    // 切换滤镜
+    const filterSelect = document.querySelector('#filter-select')
+    filterSelect.addEventListener('change', changeFilter)
+    function changeFilter() {
+      amz1._config.filter = AMZGif.filter[filterSelect.value]
+    }
+    // 样例2
     const amz2 = new AMZGif({
       el: '#example2',
       src: './assets/sample2.gif',
       speed: 1,
       loop: false,
-      auto: true,
-      onEnd() {
-        const container = document.querySelector('#container')
-        container.style.width = amz2._imgEl.style.width
-        container.style.height = amz2._imgEl.style.height
-        for (let i = 0; i < amz2.gifData.frames.length; i++) {
-          const frame = amz2.gifData.frames[i]
-          const c = document.createElement('canvas')
-          const ctx = c.getContext('2d')
-          c.style.width = amz2._imgEl.style.width
-          c.style.height = amz2._imgEl.style.height
-          c.width = amz2._canvas.width
-          c.height = amz2._canvas.height
-          ctx.putImageData(frame.canvasImageData, 0, 0)
-          ctx.font = '16px sans-serif'
-          ctx.fillText(i, 0, 16)
-          container.appendChild(c)
-        }
-      }
+      auto: true
     })
   </script>
 </body>

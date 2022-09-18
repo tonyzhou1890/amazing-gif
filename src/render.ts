@@ -1,4 +1,5 @@
-import { GifData, GifFrameData } from "./types";
+import { isFunc } from "./helpers";
+import { Config, GifData, GifFrameData } from "./types";
 
 /**
  * generate ImageData for canvas
@@ -133,12 +134,19 @@ export function getLastFrameSnapshot(gifData: GifData, frameIndex: number): unde
 /**
  * render frame image data to canvas
  */
-export function render(ctx: CanvasRenderingContext2D, offscreenCtx: CanvasRenderingContext2D, gifData: GifData, frameIndex: number) {
+export function render(ctx: CanvasRenderingContext2D, offscreenCtx: CanvasRenderingContext2D, gifData: GifData, frameIndex: number, beforeDraw?: Function) {
   // current frame info
   const frameInfo = gifData.frames[frameIndex]
   // get last frame snapshot
   let lastFrameSnapshot = getLastFrameSnapshot(gifData, frameIndex)
-  const currentFrameImage = generateImageData(gifData, frameInfo, lastFrameSnapshot)
+  let currentFrameImage = generateImageData(gifData, frameInfo, lastFrameSnapshot)
+  // if beforeDraw is Function, call it
+  if (isFunc(beforeDraw)) {
+    let tempFrameImage = new ImageData(currentFrameImage.width, currentFrameImage.height)
+    tempFrameImage.data.set(currentFrameImage.data)
+    tempFrameImage = (beforeDraw as Function)(tempFrameImage)
+    currentFrameImage = tempFrameImage
+  }
   offscreenCtx.putImageData(currentFrameImage, 0, 0)
   // drawImage can scale image, but doesn't support ImageData, so we use offscreen canvas
   ctx.drawImage(offscreenCtx.canvas, 0, 0, currentFrameImage.width, currentFrameImage.height, 0, 0, ctx.canvas.width, ctx.canvas.height)

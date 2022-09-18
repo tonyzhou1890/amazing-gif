@@ -37,7 +37,8 @@ export interface Config {
   onEnd?: CallbackFunc
   // (can be Promise,) if result if false, will not stop
   onBeforePause: CallbackFunc
-  onPause?: CallbackFunc
+  onPause?: CallbackFunc,
+  filter?: (imgData: ImageData) => ImageData
 }
 
 /**

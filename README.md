@@ -73,7 +73,7 @@ new AMZGif(config)
 
 值：Boolean
 
-是否自动播放，选填，默认`true`。改包默认实例化的时候就会播放`gif`。如果你希望点击图片之后再播放，请将该选项设置`false`。
+是否自动播放，选填，默认`false`。如果你希望自动播放，请将该选项设置`true`。
 
 ### width
 
@@ -104,6 +104,37 @@ new AMZGif(config)
 值：Number
 
 播放速度，选填，默认`1`。可以选填`0.5/1/1.5/2`中的任一个。
+
+### filter
+
+值：Function
+
+滤镜。可选。AMZGif 类上自带了部分滤镜，也可以根据需求自己实现。
+
+```
+const amz1 = new AMZGif({
+  el: '#example1',
+  src: './assets/cat1.gif',
+  speed: 1,
+  auto: true,
+  skin: 'basic',
+  filter: AMZGif.filter.grayscale
+})
+```
+|滤镜|方法|
+|--|--|
+|grayscale|灰度滤镜|
+|blackAndWhite|黑白滤镜|
+|reverse|反向滤镜|
+|decolorizing|去色滤镜|
+|monochromeRed|单色红滤镜|
+|monochromeGreen|单色绿滤镜|
+|monochromeBlue|单色蓝滤镜|
+|nostalgic|怀旧滤镜|
+|cast|熔铸滤镜|
+|frozen|冰冻滤镜|
+|comic|连环画滤镜|
+|brown|褐色|
 
 ### onLoad
 
@@ -158,6 +189,7 @@ new AMZGif(config)
 值：Function
 
 暂停回调，选填。没有参数。不需要返回值。
+
 
 ## API
 

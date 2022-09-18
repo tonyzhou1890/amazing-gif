@@ -25,6 +25,7 @@ export interface Config {
     onEnd?: CallbackFunc;
     onBeforePause: CallbackFunc;
     onPause?: CallbackFunc;
+    filter?: (imgData: ImageData) => ImageData;
 }
 /**
  * read ctrl type

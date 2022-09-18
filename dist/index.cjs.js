@@ -645,12 +645,19 @@ function getLastFrameSnapshot(gifData, frameIndex) {
 /**
  * render frame image data to canvas
  */
-function render(ctx, offscreenCtx, gifData, frameIndex) {
+function render(ctx, offscreenCtx, gifData, frameIndex, beforeDraw) {
     // current frame info
     const frameInfo = gifData.frames[frameIndex];
     // get last frame snapshot
     let lastFrameSnapshot = getLastFrameSnapshot(gifData, frameIndex);
-    const currentFrameImage = generateImageData(gifData, frameInfo, lastFrameSnapshot);
+    let currentFrameImage = generateImageData(gifData, frameInfo, lastFrameSnapshot);
+    // if beforeDraw is Function, call it
+    if (isFunc(beforeDraw)) {
+        let tempFrameImage = new ImageData(currentFrameImage.width, currentFrameImage.height);
+        tempFrameImage.data.set(currentFrameImage.data);
+        tempFrameImage = beforeDraw(tempFrameImage);
+        currentFrameImage = tempFrameImage;
+    }
     offscreenCtx.putImageData(currentFrameImage, 0, 0);
     // drawImage can scale image, but doesn't support ImageData, so we use offscreen canvas
     ctx.drawImage(offscreenCtx.canvas, 0, 0, currentFrameImage.width, currentFrameImage.height, 0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -804,10 +811,192 @@ function initSkin (amzGif) {
     }
 }
 
+/**
+ * grayscale filter
+ * Weighted average: 0.3R + 0.59G + 0.11*B
+ */
+function grayscale (imgData) {
+    for (let i = 0, len = imgData.data.length; i < len; i += 4) {
+        const avg = (imgData.data[i] * 0.3 + imgData.data[i + 1] * 0.59 + imgData.data[i + 2] * 0.11) >> 0;
+        imgData.data[i] = imgData.data[i + 1] = imgData.data[i + 2] = avg;
+    }
+    return imgData;
+}
+
+/**
+ * black and white filter
+ * if average value of rgb is smaller than 100, set rgb to 0, otherwise set rgba to 255
+ */
+function blackAndWhite(imgData) {
+    for (let i = 0, len = imgData.data.length; i < len; i += 4) {
+        const avg = (imgData.data[i] + imgData.data[i + 1] + imgData.data[i + 2]) / 3;
+        imgData.data[i] = imgData.data[i + 1] = imgData.data[i + 2] = avg >= 100 ? 255 : 0;
+    }
+    return imgData;
+}
+
+/**
+ * reverse filter
+ * subtract rgb from 255
+ */
+function reverse(imgData) {
+    for (let i = 0, len = imgData.data.length; i < len; i += 4) {
+        imgData.data[i] = 255 - imgData.data[i];
+        imgData.data[i + 1] = 255 - imgData.data[i + 1];
+        imgData.data[i + 2] = 255 - imgData.data[i + 2];
+    }
+    return imgData;
+}
+
+/**
+ * decolorizing filter
+ * set rgb to the average of extremum
+ */
+function decolorizing(imgData) {
+    for (let i = 0, len = imgData.data.length; i < len; i += 4) {
+        const avg = ((Math.min(imgData.data[i], imgData.data[i + 1], imgData.data[i + 2]) + Math.max(imgData.data[i], imgData.data[i + 1], imgData.data[i + 2])) / 2) >> 0;
+        imgData.data[i] = imgData.data[i + 1] = imgData.data[i + 2] = avg;
+    }
+    return imgData;
+}
+
+/**
+ * monochrome red filter
+ * set green and blue to zero
+ */
+function monochromeRed(imgData) {
+    for (let i = 0, len = imgData.data.length; i < len; i += 4) {
+        imgData.data[i + 1] = imgData.data[i + 2] = 0;
+    }
+    return imgData;
+}
+
+/**
+ * monochrome green filter
+ * set red and blue to zero
+ */
+function monochromeGreen(imgData) {
+    for (let i = 0, len = imgData.data.length; i < len; i += 4) {
+        imgData.data[i] = imgData.data[i + 2] = 0;
+    }
+    return imgData;
+}
+
+/**
+ * monochrome blue filter
+ * set red and green to zero
+ */
+function monochromeBlue(imgData) {
+    for (let i = 0, len = imgData.data.length; i < len; i += 4) {
+        imgData.data[i] = imgData.data[i + 1] = 0;
+    }
+    return imgData;
+}
+
+/**
+ * nostalgic filter
+ * r: 0.393 * r + 0.769 * g + 0.189 * b
+ * g: 0.349 * r + 0.686 * g + 0.168 * b
+ * b: 0.272 * r + 0.534 * g + 0.131 * b
+ */
+function nostalgic(imgData) {
+    for (let i = 0, len = imgData.data.length; i < len; i += 4) {
+        const r = imgData.data[i], g = imgData.data[i + 1], b = imgData.data[i + 2];
+        const newR = 0.393 * r + 0.769 * g + 0.189 * b, newG = 0.349 * r + 0.686 * g + 0.168 * b, newB = 0.272 * r + 0.534 * g + 0.131 * b;
+        imgData.data[i] = Math.min(255, Math.max(0, newR));
+        imgData.data[i + 1] = Math.min(255, Math.max(0, newG));
+        imgData.data[i + 2] = Math.min(255, Math.max(0, newB));
+    }
+    return imgData;
+}
+
+/**
+ * black and white filter
+ * r: r * 128 / (g + b + 1)
+ * g: g * 128 / (r + b + 1)
+ * b: b * 128 / (g + r + 1)
+ */
+function cast(imgData) {
+    for (let i = 0, len = imgData.data.length; i < len; i += 4) {
+        const r = imgData.data[i], g = imgData.data[i + 1], b = imgData.data[i + 2];
+        const newR = r * 128 / (g + b + 1), newG = g * 128 / (r + b + 1), newB = b * 128 / (g + r + 1);
+        imgData.data[i] = Math.min(255, Math.max(0, newR));
+        imgData.data[i + 1] = Math.min(255, Math.max(0, newG));
+        imgData.data[i + 2] = Math.min(255, Math.max(0, newB));
+    }
+    return imgData;
+}
+
+/**
+ * black and white filter
+ * r: (r - g -b) * 3 /2
+ * g: (g - r -b) * 3 /2
+ * b: (b - g -r) * 3 /2
+ */
+function frozen(imgData) {
+    for (let i = 0, len = imgData.data.length; i < len; i += 4) {
+        const r = imgData.data[i], g = imgData.data[i + 1], b = imgData.data[i + 2];
+        const newR = (r - g - b) * 3 / 2, newG = (g - r - b) * 3 / 2, newB = (b - g - r) * 3 / 2;
+        imgData.data[i] = Math.min(255, Math.max(0, newR));
+        imgData.data[i + 1] = Math.min(255, Math.max(0, newG));
+        imgData.data[i + 2] = Math.min(255, Math.max(0, newB));
+    }
+    return imgData;
+}
+
+/**
+ * black and white filter
+ * r: |g – b + g + r| * r / 256
+ * g: |b – g + b + r| * r / 256
+ * b: |b – g + b + r| * g / 256
+ */
+function comic(imgData) {
+    for (let i = 0, len = imgData.data.length; i < len; i += 4) {
+        const r = imgData.data[i], g = imgData.data[i + 1], b = imgData.data[i + 2];
+        imgData.data[i] = Math.abs(g - b + g + r) * r / 256;
+        imgData.data[i + 1] = Math.abs(b - g + b + r) * r / 256;
+        imgData.data[i + 2] = Math.abs(b - g + b + r) * g / 256;
+    }
+    return imgData;
+}
+
+/**
+ * black and white filter
+ * r: r * 0.393 + g * 0.769 + b * 0.189
+ * g: r * 0.349 + g * 0.686 + b * 0.168
+ * b: r * 0.272 + g * 0.534 + b * 0.131
+ */
+function brown(imgData) {
+    for (let i = 0, len = imgData.data.length; i < len; i += 4) {
+        const r = imgData.data[i], g = imgData.data[i + 1], b = imgData.data[i + 2];
+        const newR = r * 0.393 + g * 0.769 + b * 0.189, newG = r * 0.349 + g * 0.686 + b * 0.168, newB = r * 0.272 + g * 0.534 + b * 0.131;
+        imgData.data[i] = Math.min(255, Math.max(0, newR));
+        imgData.data[i + 1] = Math.min(255, Math.max(0, newG));
+        imgData.data[i + 2] = Math.min(255, Math.max(0, newB));
+    }
+    return imgData;
+}
+
+// filters from https://www.jianshu.com/p/3122d9710bd8
+var filter = {
+    grayscale,
+    blackAndWhite,
+    reverse,
+    decolorizing,
+    monochromeRed,
+    monochromeGreen,
+    monochromeBlue,
+    nostalgic,
+    cast,
+    frozen,
+    comic,
+    brown
+};
+
 const defaultConfig = {
     loop: true,
     auto: false,
-    interface: true,
+    interactive: true,
     skin: 'basic',
     speed: 1
 };
@@ -1098,7 +1287,12 @@ class AMZGif {
         const offscreenCtx = this._offscreenCtx;
         // render will take some time
         this.isRendering = true;
-        render(ctx, offscreenCtx, gifData, this._currFrame);
+        render(ctx, offscreenCtx, gifData, this._currFrame, (imgData) => {
+            if (isFunc(this._config.filter)) {
+                return this._config.filter(imgData);
+            }
+            return imgData;
+        });
         this.isRendering = false;
     }
     _checkEnd() {
@@ -1160,5 +1354,6 @@ class AMZGif {
         }
     }
 }
+AMZGif.filter = filter;
 
 module.exports = AMZGif;

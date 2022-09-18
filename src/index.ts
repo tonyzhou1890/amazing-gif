@@ -4,11 +4,12 @@ import parser from "./parser"
 import rAF from "./rAF"
 import { render } from "./render"
 import initSkin from './skin'
+import filter from './filter'
 
 const defaultConfig = {
   loop: true,
   auto: false,
-  interface: true,
+  interactive: true,
   skin: 'basic',
   speed: 1
 }
@@ -26,6 +27,8 @@ class AMZGif {
     this._togglePlay = this._togglePlay.bind(this)
     this._init()
   }
+
+  static filter = filter
 
   speedList = speedList
 
@@ -317,7 +320,12 @@ class AMZGif {
 
     // render will take some time
     this.isRendering = true
-    render(ctx, offscreenCtx, gifData, this._currFrame)
+    render(ctx, offscreenCtx, gifData, this._currFrame, (imgData: ImageData) => {
+      if (isFunc(this._config.filter)) {
+        return (this._config.filter as Function)(imgData)
+      }
+      return imgData
+    })
     this.isRendering = false
   }
 

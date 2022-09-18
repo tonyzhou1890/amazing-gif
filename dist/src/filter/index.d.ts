@@ -1,0 +1,27 @@
+import grayscale from "./grayscale";
+import blackAndWhite from "./blackAndWhite";
+import reverse from "./reverse";
+import decolorizing from "./decolorizing";
+import monochromeRed from "./monochromeRed";
+import monochromeGreen from "./monochromeGreen";
+import monochromeBlue from "./monochromeBlue";
+import nostalgic from "./nostalgic";
+import cast from "./cast";
+import frozen from "./frozen";
+import comic from "./comic";
+import brown from "./brown";
+declare const _default: {
+    grayscale: typeof grayscale;
+    blackAndWhite: typeof blackAndWhite;
+    reverse: typeof reverse;
+    decolorizing: typeof decolorizing;
+    monochromeRed: typeof monochromeRed;
+    monochromeGreen: typeof monochromeGreen;
+    monochromeBlue: typeof monochromeBlue;
+    nostalgic: typeof nostalgic;
+    cast: typeof cast;
+    frozen: typeof frozen;
+    comic: typeof comic;
+    brown: typeof brown;
+};
+export default _default;

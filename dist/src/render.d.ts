@@ -10,4 +10,4 @@ export declare function getLastFrameSnapshot(gifData: GifData, frameIndex: numbe
 /**
  * render frame image data to canvas
  */
-export declare function render(ctx: CanvasRenderingContext2D, offscreenCtx: CanvasRenderingContext2D, gifData: GifData, frameIndex: number): ImageData;
+export declare function render(ctx: CanvasRenderingContext2D, offscreenCtx: CanvasRenderingContext2D, gifData: GifData, frameIndex: number, beforeDraw?: Function): ImageData;
