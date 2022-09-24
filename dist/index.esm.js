@@ -32,6 +32,12 @@ function __awaiter(thisArg, _arguments, P, generator) {
 function isFunc(f) {
     return typeof f === 'function';
 }
+/**
+ * isOdd
+ */
+function isOdd(a) {
+    return !!(a % 2);
+}
 const errMsgs = {
     notReady: '数据未就绪',
     wrongParam: '参数错误',
@@ -46,6 +52,92 @@ const errMsgs = {
     skinError: '皮肤出错',
     skinContainerIsSmall: '空间不足以显示皮肤'
 };
+/**
+ * @name fillBoxPixels
+ * fill box pixels
+ */
+function fillBoxPixels(imgData, x, y, box, boxWidth, boxHeight, pixelChannel) {
+    let xOver = false;
+    let yOver = false;
+    let xDis = 0;
+    let yDis = 0;
+    let boxCenter = [(boxWidth / 2) >> 0, (boxHeight / 2) >> 0];
+    let pixelStartIdx = 0;
+    for (let i = 0; i < boxWidth; i++) {
+        for (let j = 0; j < boxHeight; j++) {
+            xOver = false;
+            yOver = false;
+            // whether x direction overflow
+            xDis = boxCenter[0] - i;
+            if (xDis > 0) {
+                if (xDis > x) {
+                    xOver = true;
+                }
+            }
+            else {
+                if (x - xDis >= imgData.width) {
+                    xOver = true;
+                }
+            }
+            // whether y direction overflow
+            yDis = boxCenter[1] - j;
+            if (j < boxCenter[1]) {
+                if (yDis > y) {
+                    yOver = true;
+                }
+            }
+            else {
+                if (y - yDis >= imgData.height) {
+                    yOver = true;
+                }
+            }
+            // Out-of-bounds processing
+            // corner
+            if (xOver && yOver) {
+                // left-top corner
+                if (xDis > 0 && yDis > 0) {
+                    pixelStartIdx = 0;
+                }
+                else if (xDis < 0 && yDis < 0) {
+                    // right-bottom corner
+                    pixelStartIdx = (imgData.width * imgData.height - 1) * 4;
+                }
+                else if (xDis > 0) {
+                    // left-bottom corner
+                    pixelStartIdx = imgData.width * (imgData.height - 1) * 4;
+                }
+                else {
+                    // right-top corner
+                    pixelStartIdx = (imgData.width - 1) * 4;
+                }
+            }
+            else if (xOver) {
+                // left
+                if (xDis < 0) {
+                    pixelStartIdx = (y - yDis) * imgData.width * 4;
+                }
+                else {
+                    // right
+                    pixelStartIdx = ((y - yDis) * imgData.width - 1) * 4;
+                }
+            }
+            else if (yOver) {
+                // top
+                if (yDis < 0) {
+                    pixelStartIdx = (x - xDis) * 4;
+                }
+                else {
+                    // bottom
+                    pixelStartIdx = ((imgData.height - 1) * imgData.width + x - xDis) * 4;
+                }
+            }
+            // common processing
+            pixelStartIdx = ((y - yDis) * imgData.width + (x - xDis)) * 4;
+            box[i + boxWidth * j] = imgData.data[pixelStartIdx + pixelChannel];
+        }
+    }
+    return box;
+}
 
 // https://www.cnblogs.com/jiang08/articles/3171319.html
 /**
@@ -975,6 +1067,41 @@ function brown(imgData) {
     return imgData;
 }
 
+/**
+ * box blur
+ */
+function boxBlur(imgData, boxSize = 5) {
+    const tempImgData = new ImageData(imgData.width, imgData.height);
+    tempImgData.data.set(imgData.data);
+    // boxSize need be odd
+    boxSize = isOdd(boxSize) ? boxSize : boxSize + 1;
+    let x = 0;
+    let y = 0;
+    let box = new Uint8ClampedArray(boxSize * boxSize);
+    let sum = 0;
+    let avg = 0;
+    for (let i = 0, len = imgData.data.length; i < len; i += 4) {
+        x = (i / 4) % imgData.width;
+        y = (i / 4 / imgData.width) >> 0;
+        // rgb channels
+        for (let c = 0; c < 3; c++) {
+            box = fillBoxPixels(imgData, x, y, box, boxSize, boxSize, c);
+            // box average
+            sum = 0;
+            for (let bi = 0, len = box.length; bi < len; bi++) {
+                sum += box[bi];
+            }
+            avg = (sum / box.length) >> 0;
+            if (avg < 0)
+                avg = 0;
+            else if (avg > 255)
+                avg = 255;
+            tempImgData.data[i + c] = avg;
+        }
+    }
+    return tempImgData;
+}
+
 // filters from https://www.jianshu.com/p/3122d9710bd8
 var filter = {
     grayscale,
@@ -988,7 +1115,8 @@ var filter = {
     cast,
     frozen,
     comic,
-    brown
+    brown,
+    boxBlur
 };
 
 const defaultConfig = {

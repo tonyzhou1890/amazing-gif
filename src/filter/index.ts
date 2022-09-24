@@ -11,6 +11,7 @@ import cast from "./cast";
 import frozen from "./frozen";
 import comic from "./comic";
 import brown from "./brown";
+import boxBlur from "./boxBlur";
 
 export default {
   grayscale,
@@ -24,5 +25,6 @@ export default {
   cast,
   frozen,
   comic,
-  brown
+  brown,
+  boxBlur
 }

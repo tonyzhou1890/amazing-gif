@@ -10,6 +10,7 @@ import cast from "./cast";
 import frozen from "./frozen";
 import comic from "./comic";
 import brown from "./brown";
+import boxBlur from "./boxBlur";
 declare const _default: {
     grayscale: typeof grayscale;
     blackAndWhite: typeof blackAndWhite;
@@ -23,5 +24,6 @@ declare const _default: {
     frozen: typeof frozen;
     comic: typeof comic;
     brown: typeof brown;
+    boxBlur: typeof boxBlur;
 };
 export default _default;

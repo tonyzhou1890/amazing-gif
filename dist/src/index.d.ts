@@ -14,6 +14,7 @@ declare class AMZGif {
         frozen: typeof import("./filter/frozen").default;
         comic: typeof import("./filter/comic").default;
         brown: typeof import("./filter/brown").default;
+        boxBlur: typeof import("./filter/boxBlur").default;
     };
     speedList: number[];
     _config: Config;
