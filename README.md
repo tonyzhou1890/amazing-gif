@@ -123,18 +123,19 @@ const amz1 = new AMZGif({
 ```
 |滤镜|说明|
 |--|--|
-|grayscale|灰度滤镜|
-|blackAndWhite|黑白滤镜|
-|reverse|反向滤镜|
-|decolorizing|去色滤镜|
-|monochromeRed|单色红滤镜|
-|monochromeGreen|单色绿滤镜|
-|monochromeBlue|单色蓝滤镜|
-|nostalgic|怀旧滤镜|
-|cast|熔铸滤镜|
-|frozen|冰冻滤镜|
-|comic|连环画滤镜|
+|grayscale|灰度|
+|blackAndWhite|黑白|
+|reverse|反向|
+|decolorizing|去色|
+|monochromeRed|单色红|
+|monochromeGreen|单色绿|
+|monochromeBlue|单色蓝|
+|nostalgic|怀旧|
+|cast|熔铸|
+|frozen|冰冻|
+|comic|连环画|
 |brown|褐色|
+|boxBlur|模糊|
 
 ### onLoad
 
@@ -270,3 +271,13 @@ amz.play().then(() => amz.pause())
 值：Function
 
 设置播放速度。参数为`0.5/1/1.5/2`中的一个数字。
+
+## 参考文档
+
+* [gif 格式图片详细解析](https://blog.csdn.net/wzy198852/article/details/17266507)
+* [GIF格式解析](https://www.jianshu.com/p/38743ef278ac)
+* [为什么有的GIF图片只会播放一遍，而有的会重复播放？关于gif你想知道的一切！](https://www.cnblogs.com/qkshhan/p/16202931.html)
+* [GIF](https://en.wikipedia.org/wiki/GIF)
+* [GIF图片原理和储存结构深入解析](https://en.wikipedia.org/wiki/GIF)
+* [gif 89a spec](https://www.w3.org/Graphics/GIF/spec-gif89a.txt)
+* [GIF格式文件解码](https://www.cnblogs.com/jiang08/articles/3171319.html)

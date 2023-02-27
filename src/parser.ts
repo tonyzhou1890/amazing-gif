@@ -1,4 +1,4 @@
-import { ReadCtrlType, GifHeaderInfo, GifFrameData, GifData } from "./types";
+import { ReadCtrlType, GifFrameData, GifData } from "./types";
 import { errMsgs, isFunc } from "./helpers";
 import { GifLZW } from "./lzw";
 

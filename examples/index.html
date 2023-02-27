@@ -34,6 +34,29 @@
   </div>
   <h2>example:</h2>
   <div>
+    <label>滤镜：</label>
+    <select id="filter-select-2">
+      <option value="">--选择滤镜--</option>
+      <option value="grayscale">灰度</option>
+      <option value="blackAndWhite">黑白</option>
+      <option value="reverse">反向</option>
+      <option value="decolorizing">去色</option>
+      <option value="monochromeRed">单色红</option>
+      <option value="monochromeGreen">单色绿</option>
+      <option value="monochromeBlue">单色蓝</option>
+      <option value="nostalgic">怀旧</option>
+      <option value="cast">熔铸</option>
+      <option value="frozen">冰冻</option>
+      <option value="comic">连环画</option>
+      <option value="brown">褐色</option>
+      <option value="boxBlur">均值模糊</option>
+    </select>
+  </div>
+  <div>
+    <label for="choose-input">选择文件</label>
+    <input type="file" id="choose-input">
+  </div>
+  <div>
     <img id="example2" src="./assets/sample2-cover.jpg" alt="">
   </div>
   <script>
@@ -52,7 +75,34 @@
       amz1._config.filter = AMZGif.filter[filterSelect.value]
     }
     // 样例2
-    const amz2 = new AMZGif({
+    let amz2 = null
+    const filterSelect2 = document.querySelector('#filter-select-2')
+    filterSelect2.addEventListener('change', changeFilter2)
+    function changeFilter() {
+      if (!amz2) {
+        return window.alert('请先选择gif文件')
+      }
+      amz2._config.filter = AMZGif.filter[filterSelect2.value]
+    }
+    const fileInput = document.querySelector('#select-input')
+    fileInput.addEventListener('change', changeFile)
+    function chageFile(e) {
+      if (e.files[0]) {
+        amz2 = new AMZGif({
+          el: '#example2',
+          src: ' ',
+          httpRequest: () => {
+            return new Promise((resolve, reject) => {
+              const fileR = new FileReader()
+              fileR.onload = (f) => {
+                resolve(f)
+              }
+            })
+          }
+        })
+      }
+    }
+    amz2 = new AMZGif({
       el: '#example2',
       src: './assets/sample2.gif',
       speed: 1,

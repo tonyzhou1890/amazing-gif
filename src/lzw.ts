@@ -46,8 +46,10 @@ export const GifLZW = {
         if (bitIdx === 8) {
           byteIdx++
           bitIdx = 0
+          if (byteIdx >= byteLen) break
         }
       }
+      if (byteIdx >= byteLen) break
       // console.log(bitIdx, bitLength, byteIdx, code)
       //
       if (code === endCode) break
