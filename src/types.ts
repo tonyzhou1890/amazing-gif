@@ -52,9 +52,9 @@ export interface ReadCtrlType {
  * gif header info type
  */
 export interface GifHeaderInfo {
-  type: string
+  type: string // e.g. 'GIF'
   isGif: boolean
-  version: string
+  version: string // e.g. '89a'
   width: number
   height: number
   gctFlag: boolean
@@ -94,6 +94,19 @@ export interface GifFrameData {
   imageStartByte: number
   imageEndByte: number
   canvasImageData?: ImageData
+  independentImageData?: ImageData
+}
+
+/**
+ * application extension data type
+ */
+export interface AppExt {
+  appName: string
+  verification: string
+  blockIdx: number
+  repetitionTimes: number
+  startByte: number
+  endByte: number
 }
 
 /**
@@ -101,13 +114,16 @@ export interface GifFrameData {
  */
 export interface GifData {
   header: GifHeaderInfo
-  appExt?: {
-    appName: string
-    repetitionTimes: number
-    startByte: number
-    endByte: number
-  }
+  appExt?: AppExt
   frames: Array<GifFrameData>
+}
+
+/**
+ * gif encoded data type
+ */
+export interface GifEncodeData {
+  buf: Uint8Array
+  ptr: number
 }
 
 /**

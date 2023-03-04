@@ -16,6 +16,14 @@ declare class AMZGif {
         brown: typeof import("./filter/brown").default;
         boxBlur: typeof import("./filter/boxBlur").default;
     };
+    static gifKit: {
+        decode(buf: ArrayBuffer, errorCallback: Function): GifData | undefined;
+        encode(gifData: GifData): Uint8Array;
+        getFrameImageData: typeof import("./render").generateIndependentImageData;
+        getFramesImageData(gifData: GifData): ImageData[];
+        getCompositeFrameImageData: typeof import("./render").generateFullCanvasImageData;
+        getCompositeFramesImageData(gifData: GifData): ImageData[];
+    };
     speedList: number[];
     _config: Config;
     _imgEl: HTMLImageElement | null;

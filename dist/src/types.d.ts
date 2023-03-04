@@ -78,19 +78,33 @@ export interface GifFrameData {
     imageStartByte: number;
     imageEndByte: number;
     canvasImageData?: ImageData;
+    independentImageData?: ImageData;
+}
+/**
+ * application extension data type
+ */
+export interface AppExt {
+    appName: string;
+    verification: string;
+    blockIdx: number;
+    repetitionTimes: number;
+    startByte: number;
+    endByte: number;
 }
 /**
  * gif data obj type
  */
 export interface GifData {
     header: GifHeaderInfo;
-    appExt?: {
-        appName: string;
-        repetitionTimes: number;
-        startByte: number;
-        endByte: number;
-    };
+    appExt?: AppExt;
     frames: Array<GifFrameData>;
+}
+/**
+ * gif encoded data type
+ */
+export interface GifEncodeData {
+    buf: Uint8Array;
+    ptr: number;
 }
 /**
  * value change type

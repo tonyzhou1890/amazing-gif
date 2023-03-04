@@ -1,20 +1,12 @@
 import { errMsgs, isFunc } from "./helpers"
 import { Config, GifData, httpGifRequest } from './types'
-import parser from "./parser"
+import { defaultConfig, speedList } from './config'
+import decode from "./decoder"
 import rAF from "./rAF"
 import { render } from "./render"
 import initSkin from './skin'
 import filter from './filter'
-
-const defaultConfig = {
-  loop: true,
-  auto: false,
-  interactive: true,
-  skin: 'basic',
-  speed: 1
-}
-
-const speedList = [0.5, 1.0, 1.5, 2.0]
+import gifKit from './gifKit'
 
 class AMZGif {
   constructor(config: Config) {
@@ -29,6 +21,8 @@ class AMZGif {
   }
 
   static filter = filter
+
+  static gifKit = gifKit
 
   speedList = speedList
 
@@ -96,7 +90,7 @@ class AMZGif {
       }
       this._imgEl = el
     }
-    this._imgEl?.addEventListener('load', () => {
+    setTimeout(() => {
       this._initCanvas()
       this._initContainer()
       // init controller
@@ -159,7 +153,7 @@ class AMZGif {
   async play() {
     // check gifBuffer, if it is null, load gif first
     if (this._gifBuffer === null) {
-      if (!this._config.src) {
+      if (!this._config.src && typeof this._config.httpRequest !== 'function') {
         return this._errCall(errMsgs.noGifUrl, 'onError')
       }
       await this._getGif().catch((e: Error) => this._errCall(e.message, 'onLoadError'))
@@ -169,7 +163,7 @@ class AMZGif {
     }
     // try parse gifBuffer
     if (this.gifData === null) {
-      const temp = parser(this._gifBuffer, this._errCall)
+      const temp = decode(this._gifBuffer, this._errCall)
       if (!temp || !temp.header.isGif) return
       this.gifData = temp
       this._offscreenCanvas = document.createElement('canvas')

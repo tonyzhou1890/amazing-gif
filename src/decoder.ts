@@ -3,11 +3,11 @@ import { errMsgs, isFunc } from "./helpers";
 import { GifLZW } from "./lzw";
 
 /**
- * parse gif buffer
+ * decode gif buffer
  * @param gifBuffer 
  * @param errorCallback 
  */
-export default function parser(gifBuffer: ArrayBuffer, errorCallback: Function) {
+export default function decode(gifBuffer: ArrayBuffer, errorCallback: Function): GifData | undefined {
   if (!(gifBuffer instanceof ArrayBuffer)) {
     if (isFunc(errorCallback)) {
       return errorCallback(errMsgs.gifDataTypeError, 'onDataError')
@@ -156,12 +156,12 @@ function readLSD(buf: Uint8Array, readCtrl: ReadCtrlType) {
   // 2 ~ 4 bits represent the bits of primary color(rgb)
   // this is useless.
   // https://stackoverflow.com/questions/7128265/purpose-of-color-resolution-bits-in-a-gif
-  info.cr = buf[10] & 0x70
+  info.cr = (buf[10] >> 4) & 0x7
   // sort flag, if this is 1, color table is sorted by frequncy
   // 5th bit indicates this
   // now, this is useless
   info.sortFlag = Boolean(buf[10] & 0x08)
-  // global color table size, (2^n)+1
+  // global color table size, (2^(n+1)
   info.gctSize = Math.pow(2, (buf[10] & 0x07) + 1)
   if (info.gctFlag) {
     info.gctStartByte = 13
@@ -196,24 +196,31 @@ function readGCT(buf: Uint8Array, gctSize: number, readCtrl: ReadCtrlType) {
 function readAppExt(buf: Uint8Array, readCtrl: ReadCtrlType) {
   const info = {
     appName: '',
+    verification: '',
+    blockIdx: 1,
     repetitionTimes: 0,
     startByte: 0,
     endByte: 0
   }
   info.startByte = readCtrl.ptr
   let idx = info.startByte
-  // app name and verification bytes(3 bytes)
+  // to NETSCAPE, app name(8 bytes) and verification bytes(3 bytes)
   const blockSize = buf[idx += 2]
   idx++
   for (let i = 0; i < blockSize - 3; i++) {
     info.appName += String.fromCharCode(buf[idx + i])
   }
-  idx += blockSize
+  idx += blockSize - 3
+  for (let i = 0; i < 3; i++) {
+    info.verification += String.fromCharCode(buf[idx + i])
+  }
+  idx += 3
   // Number of bytes in the following sub-block
   const subBlockSize = buf[idx]
   info.endByte = idx + subBlockSize
+  info.blockIdx = buf[idx + 1]
   // Unsigned number of repetitions
-  info.repetitionTimes = buf[idx += 2]
+  info.repetitionTimes = buf[idx + 2] + (buf[idx + 3] << 8)
   readCtrl.ptr = info.endByte
   return info
 }
@@ -334,7 +341,6 @@ function readFrame(buf: Uint8Array, readCtrl: ReadCtrlType) {
     for (let i = blocks.length - 1; i >= 0; i--) {
       imageData.set(blocks[i], imageDataLength -= blocks[i].length)
     }
-    // console.log(imageData)
     frameData.imageData = GifLZW.decode(codeSize, imageData)
   }
   // console.log(frameData)

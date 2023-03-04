@@ -1,8 +1,13 @@
-import { GifData, GifFrameData } from "./types";
+import { GifData } from "./types";
 /**
  * generate ImageData for canvas
  */
-export declare function generateImageData(gifData: GifData, frameInfo: GifFrameData, lastFrameSnapshot?: ImageData): ImageData;
+export declare function generateFullCanvasImageData(gifData: GifData, frameIndex: number): ImageData;
+/**
+ * generate ImageData
+ * single frame, support transparent, without regard to disposal method
+ */
+export declare function generateIndependentImageData(gifData: GifData, frameIndex: number): ImageData;
 /**
  * get correct lastFrameSnapshot
  */

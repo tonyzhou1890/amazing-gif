@@ -50,7 +50,8 @@ const errMsgs = {
     notImg: (el) => `元素 ${el} 不是图片`,
     isRendering: 'isRendering',
     skinError: '皮肤出错',
-    skinContainerIsSmall: '空间不足以显示皮肤'
+    skinContainerIsSmall: '空间不足以显示皮肤',
+    errData: '数据格式错误'
 };
 /**
  * @name fillBoxPixels
@@ -138,8 +139,18 @@ function fillBoxPixels(imgData, x, y, box, boxWidth, boxHeight, pixelChannel) {
     }
     return box;
 }
-
-// https://www.cnblogs.com/jiang08/articles/3171319.html
+/**
+ * get bit depth of a num
+ * @param num
+ * @returns
+ */
+function getBitsByNum(num) {
+    let exp = 1;
+    while (num > 2 ** exp) {
+        exp++;
+    }
+    return exp;
+}
 /**
  * getBits
  * @param num 1 byte
@@ -149,14 +160,60 @@ function fillBoxPixels(imgData, x, y, box, boxWidth, boxHeight, pixelChannel) {
 function getBits(num, bitIdx, length) {
     return (num >> bitIdx) & ((1 << length) - 1);
 }
+/**
+ * setBits
+ * @param targetNum 1 byte
+ * @param bitIdx bit index (from right to left)
+ * @param length required bits length
+ * @param sourceNum
+ * @returns
+ */
+function setBits(targetNum, bitIdx, length, sourceNum) {
+    return ((((1 << length) - 1) & sourceNum) << bitIdx) | targetNum;
+}
+/**
+ * increase buffer capacity
+ * @param buf
+ * @param num
+ * @returns
+ */
+function bufferGrow(buf, num) {
+    if (!num) {
+        num = 256;
+    }
+    if (buf instanceof Uint8Array) {
+        const temp = new Uint8Array(buf.length + num);
+        temp.set(buf);
+        return temp;
+    }
+    return undefined;
+}
+
+const defaultConfig = {
+    loop: true,
+    auto: false,
+    interactive: true,
+    skin: 'basic',
+    speed: 1
+};
+const speedList = [0.5, 1.0, 1.5, 2.0];
+const defaultBgColor = [0, 0, 0, 255];
+
+// https://www.cnblogs.com/jiang08/articles/3171319.html
 const GifLZW = {
+    /**
+     * decode gif buffer
+     * @param codeSize
+     * @param buf
+     * @returns
+     */
     decode: (codeSize, buf) => {
         function genTable() {
             return new Array((2 ** codeSize) + 2).fill(0).map((_, index) => String.fromCharCode(index));
         }
         let table = genTable();
-        let clearCode = 2 ** codeSize;
-        let endCode = 2 ** codeSize + 1;
+        const clearCode = 2 ** codeSize;
+        const endCode = 2 ** codeSize + 1;
         let bitLength = codeSize + 1;
         let stream = '';
         let decodeStart = true;
@@ -186,10 +243,10 @@ const GifLZW = {
                 if (bitIdx === 8) {
                     byteIdx++;
                     bitIdx = 0;
+                    if (byteIdx >= byteLen)
+                        break;
                 }
             }
-            // console.log(bitIdx, bitLength, byteIdx, code)
-            //
             if (code === endCode)
                 break;
             // code is clear code, reset table and others
@@ -217,6 +274,9 @@ const GifLZW = {
             else {
                 // if not
                 // console.log(table, code, oldCode)
+                if (table[oldCode] === undefined) {
+                    console.log(oldCode, stream.length);
+                }
                 k = table[oldCode][0];
                 stream += table[oldCode] + k;
                 table.push(table[oldCode] + k);
@@ -233,17 +293,114 @@ const GifLZW = {
         for (let i = 0; i < stream.length; i++) {
             res[i] = stream.charCodeAt(i);
         }
-        // console.log(res)
         return res;
+    },
+    /**
+     * encode gif color indices buffer
+     * @param codeSize
+     * @param buf
+     */
+    encode: (codeSize, buf) => {
+        // generate original code table
+        function genTable() {
+            const t = new Map();
+            new Array(2 ** codeSize).fill(0).map((_, index) => {
+                t.set(String.fromCharCode(index), index);
+            });
+            return t;
+        }
+        // write to buf
+        function write(code) {
+            let requiredBits = bitLength;
+            // if stream may not enough, expand stream
+            if (byteIdx + 2 >= stream.length) {
+                const newStream = new Uint8Array(stream.length + 256);
+                newStream.set(stream);
+                stream = newStream;
+            }
+            while (requiredBits) {
+                if (8 - bitIdx >= requiredBits) {
+                    stream[byteIdx] = setBits(stream[byteIdx], bitIdx, requiredBits, code);
+                    bitIdx += requiredBits;
+                    requiredBits = 0;
+                }
+                else {
+                    stream[byteIdx] = setBits(stream[byteIdx], bitIdx, 8 - bitIdx, code);
+                    code = code >> (8 - bitIdx);
+                    requiredBits -= 8 - bitIdx;
+                    bitIdx = 8;
+                }
+                if (bitIdx === 8) {
+                    bitIdx = 0;
+                    byteIdx++;
+                }
+            }
+        }
+        let table = genTable();
+        const clearCode = 2 ** codeSize;
+        const endCode = 2 ** codeSize + 1;
+        let tableLength = 2 ** codeSize + 2;
+        let bitLength = codeSize + 1;
+        let curBitMaxTableLength = 2 ** bitLength;
+        // this will affect the size of the compressed buf
+        // 4093 is more efficent in the example pic 'cat1.gif'
+        // let maxTableLength = 2 ** 12
+        let maxTableLength = 4093;
+        let stream = new Uint8Array(256);
+        let byteIdx = 0;
+        let bitIdx = 0;
+        let p = '';
+        let c = '';
+        // first code in data stream must be clear code
+        write(clearCode);
+        for (let i = 0, len = buf.length; i < len; i++) {
+            c = String.fromCharCode(buf[i]);
+            if (table.has(p + c)) {
+                p = p + c;
+            }
+            else {
+                write(table.get(p));
+                if (tableLength === maxTableLength) {
+                    write(clearCode);
+                    // reset code table and bitLength
+                    table = genTable();
+                    tableLength = 2 ** codeSize + 2;
+                    bitLength = codeSize + 1;
+                    curBitMaxTableLength = 2 ** bitLength;
+                }
+                else if (tableLength === curBitMaxTableLength) {
+                    bitLength++;
+                    curBitMaxTableLength = 2 ** bitLength;
+                    table.set(p + c, tableLength++);
+                }
+                else {
+                    table.set(p + c, tableLength++);
+                }
+                p = c;
+                c = '';
+            }
+        }
+        if (p) {
+            write(table.get(p));
+        }
+        write(endCode);
+        let final = null;
+        if (bitIdx) {
+            final = stream.slice(0, byteIdx + 1);
+        }
+        else {
+            final = stream.slice(0, byteIdx);
+        }
+        return final;
     }
 };
 
 /**
- * parse gif buffer
+ * decode gif buffer
  * @param gifBuffer
  * @param errorCallback
  */
-function parser(gifBuffer, errorCallback) {
+function decode(gifBuffer, errorCallback) {
     if (!(gifBuffer instanceof ArrayBuffer)) {
         if (isFunc(errorCallback)) {
             return errorCallback(errMsgs.gifDataTypeError, 'onDataError');
@@ -396,12 +553,12 @@ function readLSD(buf, readCtrl) {
     // 2 ~ 4 bits represent the bits of primary color(rgb)
     // this is useless.
     // https://stackoverflow.com/questions/7128265/purpose-of-color-resolution-bits-in-a-gif
-    info.cr = buf[10] & 0x70;
+    info.cr = (buf[10] >> 4) & 0x7;
     // sort flag, if this is 1, color table is sorted by frequncy
     // 5th bit indicates this
     // now, this is useless
     info.sortFlag = Boolean(buf[10] & 0x08);
-    // global color table size, (2^n)+1
+    // global color table size, (2^(n+1)
     info.gctSize = Math.pow(2, (buf[10] & 0x07) + 1);
     if (info.gctFlag) {
         info.gctStartByte = 13;
@@ -434,24 +591,31 @@ function readGCT(buf, gctSize, readCtrl) {
 function readAppExt(buf, readCtrl) {
     const info = {
         appName: '',
+        verification: '',
+        blockIdx: 1,
         repetitionTimes: 0,
         startByte: 0,
         endByte: 0
     };
     info.startByte = readCtrl.ptr;
     let idx = info.startByte;
-    // app name and verification bytes(3 bytes)
+    // to NETSCAPE, app name(8 bytes) and verification bytes(3 bytes)
     const blockSize = buf[idx += 2];
     idx++;
     for (let i = 0; i < blockSize - 3; i++) {
         info.appName += String.fromCharCode(buf[idx + i]);
     }
-    idx += blockSize;
+    idx += blockSize - 3;
+    for (let i = 0; i < 3; i++) {
+        info.verification += String.fromCharCode(buf[idx + i]);
+    }
+    idx += 3;
     // Number of bytes in the following sub-block
     const subBlockSize = buf[idx];
     info.endByte = idx + subBlockSize;
+    info.blockIdx = buf[idx + 1];
     // Unsigned number of repetitions
-    info.repetitionTimes = buf[idx += 2];
+    info.repetitionTimes = buf[idx + 2] + (buf[idx + 3] << 8);
     readCtrl.ptr = info.endByte;
     return info;
 }
@@ -570,7 +734,6 @@ function readFrame(buf, readCtrl) {
         for (let i = blocks.length - 1; i >= 0; i--) {
             imageData.set(blocks[i], imageDataLength -= blocks[i].length);
         }
-        // console.log(imageData)
         frameData.imageData = GifLZW.decode(codeSize, imageData);
     }
     // console.log(frameData)
@@ -604,31 +767,115 @@ function rAF(callbackQueue) {
 /**
  * generate ImageData for canvas
  */
-function generateImageData(gifData, frameInfo, lastFrameSnapshot) {
+function generateFullCanvasImageData(gifData, frameIndex) {
+    const frameInfo = gifData.frames[frameIndex];
     // check cache
     if (frameInfo.canvasImageData instanceof ImageData) {
         return frameInfo.canvasImageData;
     }
+    // get last frame snapshot
+    const lastFrameSnapshot = getLastFrameSnapshot(gifData, frameIndex);
     // color table
     const colorTable = frameInfo.lctFlag ? frameInfo.lctList : gifData.header.gctList;
     // background color
-    const bgColor = gifData.header.gctFlag ? [...gifData.header.gctList[gifData.header.bgIndex], 255] : null;
+    const bgColor = gifData.header.gctFlag ? [...gifData.header.gctList[gifData.header.bgIndex], 255] : [...defaultBgColor];
     // width and height
     const width = gifData.header.width;
     const height = gifData.header.height;
-    // if lastFrameSnapshot doesn't exist, then we will create it
-    if (!lastFrameSnapshot) {
-        const buf = new Uint8ClampedArray(width * height * 4);
-        const tempBgColor = bgColor || [0, 0, 0, 255];
-        for (let i = 0, len = width * height; i < len; i += 4) {
-            buf[i] = tempBgColor[0];
-            buf[i + 1] = tempBgColor[1];
-            buf[i + 2] = tempBgColor[2];
-            buf[i + 2] = tempBgColor[3];
-        }
-        lastFrameSnapshot = new ImageData(buf, width, height);
-    }
     // avoid affect raw data
+    const frameImageCopy = getGifRawImageDataCopy(frameInfo);
+    // fill color
+    const frameImageData = new Uint8ClampedArray(width * height * 4);
+    for (let i = 0, len = width * height; i < len; i++) {
+        let x = i % width;
+        let y = (i / width) >> 0;
+        // first primary color index
+        let pci = i << 2;
+        // whether current pixel in current frame image
+        if (x >= frameInfo.left &&
+            x < (frameInfo.left + frameInfo.width) &&
+            y >= frameInfo.top &&
+            y < (frameInfo.top + frameInfo.height)) {
+            // frameImageCopy index
+            const ficidx = x - frameInfo.left + (y - frameInfo.top) * frameInfo.width;
+            // if this pixel is transparent, pixel will be filled with the color of previous frame at the same position
+            if (frameInfo.transColorFlag && frameImageCopy[ficidx] === frameInfo.transColorIdx) {
+                if (lastFrameSnapshot) {
+                    frameImageData[pci] = lastFrameSnapshot.data[pci];
+                    frameImageData[pci + 1] = lastFrameSnapshot.data[pci + 1];
+                    frameImageData[pci + 2] = lastFrameSnapshot.data[pci + 2];
+                    frameImageData[pci + 3] = lastFrameSnapshot.data[pci + 3];
+                }
+            }
+            else {
+                const color = colorTable[frameImageCopy[ficidx]];
+                frameImageData[pci] = color[0];
+                frameImageData[pci + 1] = color[1];
+                frameImageData[pci + 2] = color[2];
+                frameImageData[pci + 3] = 255;
+            }
+        }
+        else {
+            if (lastFrameSnapshot) {
+                frameImageData[pci] = lastFrameSnapshot.data[pci];
+                frameImageData[pci + 1] = lastFrameSnapshot.data[pci + 1];
+                frameImageData[pci + 2] = lastFrameSnapshot.data[pci + 2];
+                frameImageData[pci + 3] = lastFrameSnapshot.data[pci + 3];
+            }
+            else {
+                frameImageData[pci] = bgColor[0];
+                frameImageData[pci + 1] = bgColor[1];
+                frameImageData[pci + 2] = bgColor[2];
+                frameImageData[pci + 3] = bgColor[3];
+            }
+        }
+    }
+    const frameImage = new ImageData(frameImageData, width, height);
+    // cache
+    frameInfo.canvasImageData = frameImage;
+    return frameImage;
+}
+/**
+ * generate ImageData
+ * single frame, support transparent, without regard to disposal method
+ */
+function generateIndependentImageData(gifData, frameIndex) {
+    const frameInfo = gifData.frames[frameIndex];
+    // check cache
+    if (frameInfo.independentImageData instanceof ImageData) {
+        return frameInfo.independentImageData;
+    }
+    // color table
+    const colorTable = frameInfo.lctFlag ? frameInfo.lctList : gifData.header.gctList;
+    const frameImageCopy = getGifRawImageDataCopy(frameInfo);
+    // fill color
+    const frameImageData = new Uint8ClampedArray(frameInfo.width * frameInfo.height * 4);
+    for (let i = 0; i < frameInfo.imageData.length; i++) {
+        const idx = i << 2;
+        if (frameInfo.transColorFlag && frameImageCopy[i] === frameInfo.transColorIdx) {
+            frameImageData[idx] = 0;
+            frameImageData[idx + 1] = 0;
+            frameImageData[idx + 2] = 0;
+            frameImageData[idx + 3] = 0;
+        }
+        else {
+            const color = colorTable[frameImageCopy[i]];
+            frameImageData[idx] = color[0];
+            frameImageData[idx + 1] = color[1];
+            frameImageData[idx + 2] = color[2];
+            frameImageData[idx + 3] = 255;
+        }
+    }
+    const independentImageData = new ImageData(frameInfo.width, frameInfo.height);
+    independentImageData.data.set(frameImageData);
+    // cache
+    frameInfo.independentImageData = independentImageData;
+    return independentImageData;
+}
+/**
+ * get image data copy correctly (consider interlace)
+ */
+function getGifRawImageDataCopy(frameInfo) {
     const frameImageCopy = new Uint8Array(frameInfo.imageData.length);
     // interlace
     if (frameInfo.interlace) {
@@ -667,46 +914,7 @@ function generateImageData(gifData, frameInfo, lastFrameSnapshot) {
     else {
         frameImageCopy.set(frameInfo.imageData);
     }
-    // fill color
-    const frameImageData = new Uint8ClampedArray(width * height * 4);
-    for (let i = 0, len = width * height; i < len; i++) {
-        let x = i % width;
-        let y = (i / width) >> 0;
-        // first primary color index
-        let pci = i * 4;
-        // whether current pixel in current frame image
-        if (x >= frameInfo.left &&
-            x < (frameInfo.left + frameInfo.width) &&
-            y >= frameInfo.top &&
-            y < (frameInfo.top + frameInfo.height)) {
-            // frameImageCopy index
-            const ficidx = x - frameInfo.left + (y - frameInfo.top) * frameInfo.width;
-            // if this pixel is transparent, pixel will be filled width the color of previous frame at the same position
-            if (frameInfo.transColorFlag && frameImageCopy[ficidx] === frameInfo.transColorIdx) {
-                frameImageData[pci] = lastFrameSnapshot.data[pci];
-                frameImageData[pci + 1] = lastFrameSnapshot.data[pci + 1];
-                frameImageData[pci + 2] = lastFrameSnapshot.data[pci + 2];
-                frameImageData[pci + 3] = lastFrameSnapshot.data[pci + 3];
-            }
-            else {
-                const color = colorTable[frameImageCopy[ficidx]];
-                frameImageData[pci] = color[0];
-                frameImageData[pci + 1] = color[0 + 1];
-                frameImageData[pci + 2] = color[0 + 2];
-                frameImageData[pci + 3] = 255;
-            }
-        }
-        else {
-            frameImageData[pci] = lastFrameSnapshot.data[pci];
-            frameImageData[pci + 1] = lastFrameSnapshot.data[pci + 1];
-            frameImageData[pci + 2] = lastFrameSnapshot.data[pci + 2];
-            frameImageData[pci + 3] = lastFrameSnapshot.data[pci + 3];
-        }
-    }
-    const frameImage = new ImageData(frameImageData, width, height);
-    // cache
-    frameInfo.canvasImageData = frameImage;
-    return frameImage;
+    return frameImageCopy;
 }
 /**
  * get correct lastFrameSnapshot
@@ -716,15 +924,37 @@ function getLastFrameSnapshot(gifData, frameIndex) {
     if (frameIndex <= 0)
         return undefined;
     const lastFrame = gifData.frames[frameIndex - 1];
-    // no dependency
-    if (lastFrame.disposalMethod === 0 || lastFrame.disposalMethod === 2) {
+    // no specified disposal method
+    if (lastFrame.disposalMethod === 0) {
         return undefined;
+    }
+    // set the area of image to background color
+    if (lastFrame.disposalMethod === 2) {
+        // background color
+        const bgColor = gifData.header.gctFlag ? [...gifData.header.gctList[gifData.header.bgIndex], 255] : [...defaultBgColor];
+        let lastCanvasImageData = lastFrame.canvasImageData;
+        if (!lastCanvasImageData) {
+            lastCanvasImageData = generateFullCanvasImageData(gifData, frameIndex - 1);
+        }
+        const tempImageData = new ImageData(lastCanvasImageData.width, lastCanvasImageData.height);
+        // copy data--new ImageData(data, width, height) will not copy data
+        tempImageData.data.set(lastCanvasImageData.data);
+        for (let y = lastFrame.top; y < lastFrame.top + lastFrame.height; y++) {
+            for (let x = lastFrame.left; x < lastFrame.left + lastFrame.width; x++) {
+                const idx = (y * gifData.header.width + x) << 2;
+                tempImageData.data[idx] = bgColor[0];
+                tempImageData.data[idx + 1] = bgColor[1];
+                tempImageData.data[idx + 2] = bgColor[2];
+                tempImageData.data[idx + 3] = bgColor[3];
+            }
+        }
+        return tempImageData;
     }
     // use last frame as background
     if ([1].includes(lastFrame.disposalMethod)) {
         if (lastFrame.canvasImageData)
             return lastFrame.canvasImageData;
-        return generateImageData(gifData, lastFrame, getLastFrameSnapshot(gifData, frameIndex - 1));
+        return generateFullCanvasImageData(gifData, frameIndex - 1);
     }
     // drop last frame, use last 2 frame
     if (lastFrame.disposalMethod === 3) {
@@ -736,11 +966,7 @@ function getLastFrameSnapshot(gifData, frameIndex) {
  * render frame image data to canvas
  */
 function render(ctx, offscreenCtx, gifData, frameIndex, beforeDraw) {
-    // current frame info
-    const frameInfo = gifData.frames[frameIndex];
-    // get last frame snapshot
-    let lastFrameSnapshot = getLastFrameSnapshot(gifData, frameIndex);
-    let currentFrameImage = generateImageData(gifData, frameInfo, lastFrameSnapshot);
+    let currentFrameImage = generateFullCanvasImageData(gifData, frameIndex);
     // if beforeDraw is Function, call it
     if (isFunc(beforeDraw)) {
         let tempFrameImage = new ImageData(currentFrameImage.width, currentFrameImage.height);
@@ -1119,14 +1345,276 @@ var filter = {
     boxBlur
 };
 
-const defaultConfig = {
-    loop: true,
-    auto: false,
-    interactive: true,
-    skin: 'basic',
-    speed: 1
+/**
+ * encode gif data
+ * @param gifData
+ * @param errorCallback
+ * @returns
+ */
+function encode(gifData) {
+    let data = {
+        buf: growGifBuffer(new Uint8Array(0)),
+        ptr: 0
+    };
+    // write header
+    writeHeader(data, gifData.header);
+    // write logical screen discriptor
+    writeLSD(data, gifData.header);
+    // write global color table
+    gifData.header.gctFlag && writeCT(data, gifData.header.gctList);
+    // write NETSCAPE application extension
+    gifData.appExt && writeAppExt(data, gifData.appExt);
+    // write frames
+    writeFrames(data, gifData.frames, gifData.header.gctSize);
+    // write end
+    if (data.ptr >= data.buf.length) {
+        data.buf = growGifBuffer(data.buf);
+    }
+    data.buf[data.ptr] = 0x3b;
+    data.ptr++;
+    return data.buf.slice(0, data.ptr);
+}
+/**
+ * write gif header info. just file type and gif version
+ * this need 6 bytes
+ * @param data
+ * @param header
+ */
+function writeHeader(data, header) {
+    data.buf[0] = header.type.charCodeAt(0);
+    data.buf[1] = header.type.charCodeAt(1);
+    data.buf[2] = header.type.charCodeAt(2);
+    data.buf[3] = header.version.charCodeAt(0);
+    data.buf[4] = header.version.charCodeAt(1);
+    data.buf[5] = header.version.charCodeAt(2);
+    data.ptr = 6;
+}
+/**
+ * writeLSD
+ * 7 ~ 13 bytes is logical screen descriptor
+ * @param data
+ * @param header
+ */
+function writeLSD(data, header) {
+    // image width and height--little endian
+    data.buf[6] = header.width & 0xff;
+    data.buf[7] = header.width >> 8;
+    data.buf[8] = header.height & 0xff;
+    data.buf[9] = header.height >> 8;
+    // global color table flag--the highest bit of 11th byte
+    data.buf[10] = setBits(data.buf[10], 7, 1, Number(header.gctFlag));
+    // color resolution--2 ~ 4th bit
+    data.buf[10] = setBits(data.buf[10], 4, 3, header.cr - 1);
+    // sort flag--5th bit, if this is 1, color table is sorted by frequncy
+    data.buf[10] = setBits(data.buf[10], 3, 1, Number(header.sortFlag));
+    // global color table size--3 bits, getBitsByNum(size) - 1
+    data.buf[10] = setBits(data.buf[10], 0, 3, getBitsByNum(header.gctSize) - 1);
+    // background color index
+    data.buf[11] = header.bgIndex;
+    // pixel aspect ratio
+    data.buf[12] = header.pixelAspect;
+    data.ptr = 13;
+}
+/**
+ * write color table
+ * @param data
+ * @param ctList color table list
+ */
+function writeCT(data, ctList) {
+    for (let i = 0, len = ctList.length; i < len; i++) {
+        if (data.ptr + 3 >= data.buf.length) {
+            data.buf = growGifBuffer(data.buf);
+        }
+        data.buf[data.ptr++] = ctList[i][0];
+        data.buf[data.ptr++] = ctList[i][1];
+        data.buf[data.ptr++] = ctList[i][2];
+    }
+}
+/**
+ * write application extension
+ * @param data
+ * @param appInfo
+ */
+function writeAppExt(data, appInfo) {
+    // for NETSCAPE extension, the number of bytes is 18
+    if (data.ptr + 18 >= data.buf.length) {
+        data.buf = growGifBuffer(data.buf);
+    }
+    // extension label
+    data.buf[data.ptr++] = 0x21;
+    data.buf[data.ptr++] = 0xff;
+    // block size--app name and verification code
+    data.buf[data.ptr++] = appInfo.appName.length + appInfo.verification.length;
+    // app name
+    for (let i = 0, len = appInfo.appName.length; i < len; i++) {
+        data.buf[data.ptr++] = appInfo.appName.charCodeAt(i);
+    }
+    // verification
+    for (let i = 0, len = appInfo.verification.length; i < len; i++) {
+        data.buf[data.ptr++] = appInfo.verification.charCodeAt(i);
+    }
+    // sub-block
+    data.buf[data.ptr++] = 3;
+    data.buf[data.ptr++] = appInfo.blockIdx;
+    data.buf[data.ptr++] = appInfo.repetitionTimes & 0xff;
+    data.buf[data.ptr++] = appInfo.repetitionTimes >> 8;
+    // end
+    data.buf[data.ptr++] = 0x00;
+}
+/**
+ * write frames
+ * @param data
+ * @param frames
+ * @param gctSize global color table size
+ */
+function writeFrames(data, frames, gctSize) {
+    for (let i = 0, len = frames.length; i < len; i++) {
+        const frame = frames[i];
+        // write graphic control extension
+        writeGCE(data, frame);
+        // write image descriptor
+        writeID(data, frame);
+        // write local table flag
+        frame.lctFlag && writeCT(data, frame.lctList);
+        // write image data
+        const minCodeSize = frame.lctFlag ? getBitsByNum(frame.lctSize) : getBitsByNum(gctSize);
+        const compressedBuf = GifLZW.encode(minCodeSize, frame.imageData);
+        // console.log(i, compressedBuf)
+        const subBlockSize = compressedBuf.length + Math.ceil(compressedBuf.length / 255);
+        while (data.ptr + 1 + subBlockSize >= data.buf.length) {
+            data.buf = growGifBuffer(data.buf);
+        }
+        data.buf[data.ptr++] = minCodeSize;
+        let bolckSizeIdx = data.ptr;
+        for (let i = 0, len = compressedBuf.length; i < len; i++) {
+            if (bolckSizeIdx === data.ptr) {
+                data.ptr++;
+            }
+            data.buf[data.ptr] = compressedBuf[i];
+            if (data.ptr - bolckSizeIdx === 255 || i + 1 === len) {
+                data.buf[bolckSizeIdx] = data.ptr - bolckSizeIdx;
+                bolckSizeIdx = data.ptr + 1;
+            }
+            data.ptr++;
+        }
+        data.buf[data.ptr++] = 0x0;
+    }
+}
+/**
+ * write graphic control extension
+ * @param data
+ * @param frame
+ */
+function writeGCE(data, frame) {
+    // number of bytes in GCE
+    if (data.ptr + 8 >= data.buf.length) {
+        data.buf = growGifBuffer(data.buf);
+    }
+    // extension label
+    data.buf[data.ptr++] = 0x21;
+    data.buf[data.ptr++] = 0xf9;
+    // block size
+    data.buf[data.ptr++] = 4;
+    // disposal method
+    data.buf[data.ptr] = setBits(data.buf[data.ptr], 2, 3, frame.disposalMethod);
+    // user input flag
+    data.buf[data.ptr] = setBits(data.buf[data.ptr], 1, 1, Number(frame.userInputFlag));
+    // transparent color flag
+    data.buf[data.ptr] = setBits(data.buf[data.ptr], 0, 1, Number(frame.transColorFlag));
+    // delay
+    data.ptr++;
+    data.buf[data.ptr++] = (frame.delay / 10) & 0xff;
+    data.buf[data.ptr++] = (frame.delay / 10) >> 8;
+    // transparent color index
+    data.buf[data.ptr++] = frame.transColorIdx;
+    data.buf[data.ptr++] = 0x00;
+}
+/**
+ * write image descriptor
+ * @param data
+ * @param frame
+ */
+function writeID(data, frame) {
+    // number of bytes in this block
+    if (data.ptr + 10 >= data.buf.length) {
+        data.buf = growGifBuffer(data.buf);
+    }
+    // label
+    data.buf[data.ptr++] = 0x2c;
+    // left-top coordinates
+    data.buf[data.ptr++] = frame.left & 0xff;
+    data.buf[data.ptr++] = frame.left >> 8;
+    data.buf[data.ptr++] = frame.top & 0xff;
+    data.buf[data.ptr++] = frame.top >> 8;
+    // width and height
+    data.buf[data.ptr++] = frame.width & 0xff;
+    data.buf[data.ptr++] = frame.width >> 8;
+    data.buf[data.ptr++] = frame.height & 0xff;
+    data.buf[data.ptr++] = frame.height >> 8;
+    // local color table flag
+    data.buf[data.ptr] = setBits(data.buf[data.ptr], 7, 1, Number(frame.lctFlag));
+    // interlace flag
+    data.buf[data.ptr] = setBits(data.buf[data.ptr], 6, 1, Number(frame.interlace));
+    // sort flag
+    data.buf[data.ptr] = setBits(data.buf[data.ptr], 2, 1, Number(frame.sortFlag));
+    // local color table size
+    data.buf[data.ptr] = setBits(data.buf[data.ptr], 0, 3, getBitsByNum(frame.lctSize) - 1);
+    data.ptr++;
+}
+/**
+ * grow gif buffer
+ * @param buf
+ * @returns
+ */
+function growGifBuffer(buf) {
+    return bufferGrow(buf, 1024 * 1024);
+}
+
+const kit = {
+    /**
+     * decode gif (ArrayBuffer)
+     */
+    decode(buf, errorCallback) {
+        return decode(buf, (msg, ev) => {
+            return errorCallback(msg);
+        });
+    },
+    /**
+     * encode gif
+     */
+    encode(gifData) {
+        return encode(gifData);
+    },
+    /**
+     * get frame ImageData
+     * single frame, support transparent, without regard to disposal method
+     */
+    getFrameImageData: generateIndependentImageData,
+    /**
+     * get frames ImageData[]
+     * this will take a long time
+     */
+    getFramesImageData(gifData) {
+        return gifData.frames.map((_, index) => {
+            return generateIndependentImageData(gifData, index);
+        });
+    },
+    /**
+     * get composite ImageData of a frame
+     * this may take a long time
+     */
+    getCompositeFrameImageData: generateFullCanvasImageData,
+    /**
+     * get composite ImageData of all frames
+     * this will take a long time
+     */
+    getCompositeFramesImageData(gifData) {
+        return gifData.frames.map((_, index) => {
+            return generateFullCanvasImageData(gifData, index);
+        });
+    }
 };
-const speedList = [0.5, 1.0, 1.5, 2.0];
+
 class AMZGif {
     constructor(config) {
         this.speedList = speedList;
@@ -1166,7 +1654,6 @@ class AMZGif {
      * @member init
      */
     _init() {
-        var _a;
         // init element
         // check img element
         if (!this._config.el) {
@@ -1188,7 +1675,7 @@ class AMZGif {
             }
             this._imgEl = el;
         }
-        (_a = this._imgEl) === null || _a === void 0 ? void 0 : _a.addEventListener('load', () => {
+        setTimeout(() => {
             this._initCanvas();
             this._initContainer();
             // init controller
@@ -1251,7 +1738,7 @@ class AMZGif {
         return __awaiter(this, void 0, void 0, function* () {
             // check gifBuffer, if it is null, load gif first
             if (this._gifBuffer === null) {
-                if (!this._config.src) {
+                if (!this._config.src && typeof this._config.httpRequest !== 'function') {
                     return this._errCall(errMsgs.noGifUrl, 'onError');
                 }
                 yield this._getGif().catch((e) => this._errCall(e.message, 'onLoadError'));
@@ -1261,7 +1748,7 @@ class AMZGif {
             }
             // try parse gifBuffer
             if (this.gifData === null) {
-                const temp = parser(this._gifBuffer, this._errCall);
+                const temp = decode(this._gifBuffer, this._errCall);
                 if (!temp || !temp.header.isGif)
                     return;
                 this.gifData = temp;
@@ -1481,5 +1968,6 @@ class AMZGif {
     }
 }
 AMZGif.filter = filter;
+AMZGif.gifKit = kit;
 
 export { AMZGif as default };

@@ -278,6 +278,10 @@ amz.play().then(() => amz.pause())
 * [GIF格式解析](https://www.jianshu.com/p/38743ef278ac)
 * [为什么有的GIF图片只会播放一遍，而有的会重复播放？关于gif你想知道的一切！](https://www.cnblogs.com/qkshhan/p/16202931.html)
 * [GIF](https://en.wikipedia.org/wiki/GIF)
-* [GIF图片原理和储存结构深入解析](https://en.wikipedia.org/wiki/GIF)
+* [GIF图片原理和储存结构深入解析](https://www.linuxidc.com/Linux/2017-06/145156.htm)
 * [gif 89a spec](https://www.w3.org/Graphics/GIF/spec-gif89a.txt)
 * [GIF格式文件解码](https://www.cnblogs.com/jiang08/articles/3171319.html)
+
+## License
+
+MIT

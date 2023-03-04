@@ -31,7 +31,7 @@
     "gif-parser"
   ],
   "author": "tonyzhou1890",
-  "license": "ISC",
+  "license": "MIT",
   "devDependencies": {
     "@commitlint/cli": "^17.1.2",
     "@commitlint/config-conventional": "^17.1.0",
