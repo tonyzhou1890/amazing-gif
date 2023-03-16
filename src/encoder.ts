@@ -1,17 +1,17 @@
 import { GifFrameData, GifData, GifEncodeData, GifHeaderInfo, AppExt } from './types'
 import { bufferGrow, setBits, getBitsByNum } from './helpers'
-import { GifLZW } from './lzw'
+import worker from './promiseWorker'
 
 /**
  * encode gif data
- * @param gifData 
- * @param errorCallback 
- * @returns 
+ * @param gifData
+ * @param errorCallback
+ * @returns
  */
-export default function encode(gifData: GifData): Uint8Array {
-  let data = {
+export default async function encode (gifData: GifData): Promise<Uint8Array> {
+  const data = {
     buf: growGifBuffer(new Uint8Array(0)),
-    ptr: 0
+    ptr: 0,
   }
   // write header
   writeHeader(data, gifData.header)
@@ -22,7 +22,7 @@ export default function encode(gifData: GifData): Uint8Array {
   // write NETSCAPE application extension
   gifData.appExt && writeAppExt(data, gifData.appExt)
   // write frames
-  writeFrames(data, gifData.frames, gifData.header.gctSize)
+  await writeFrames(data, gifData.frames, gifData.header.gctSize)
   // write end
   if (data.ptr >= data.buf.length) {
     data.buf = growGifBuffer(data.buf)
@@ -36,10 +36,10 @@ export default function encode(gifData: GifData): Uint8Array {
 /**
  * write gif header info. just file type and gif version
  * this need 6 bytes
- * @param data 
- * @param header 
+ * @param data
+ * @param header
  */
-function writeHeader(data: GifEncodeData, header: GifHeaderInfo) {
+function writeHeader (data: GifEncodeData, header: GifHeaderInfo) {
   data.buf[0] = header.type.charCodeAt(0)
   data.buf[1] = header.type.charCodeAt(1)
   data.buf[2] = header.type.charCodeAt(2)
@@ -52,10 +52,10 @@ function writeHeader(data: GifEncodeData, header: GifHeaderInfo) {
 /**
  * writeLSD
  * 7 ~ 13 bytes is logical screen descriptor
- * @param data 
- * @param header 
+ * @param data
+ * @param header
  */
-function writeLSD(data: GifEncodeData, header: GifHeaderInfo) {
+function writeLSD (data: GifEncodeData, header: GifHeaderInfo) {
   // image width and height--little endian
   data.buf[6] = header.width & 0xff
   data.buf[7] = header.width >> 8
@@ -79,10 +79,10 @@ function writeLSD(data: GifEncodeData, header: GifHeaderInfo) {
 
 /**
  * write color table
- * @param data 
- * @param ctList color table list 
+ * @param data
+ * @param ctList color table list
  */
-function writeCT(data: GifEncodeData, ctList: Array<Array<number>>) {
+function writeCT (data: GifEncodeData, ctList: Array<Array<number>>) {
   for (let i = 0, len = ctList.length; i < len; i++) {
     if (data.ptr + 3 >= data.buf.length) {
       data.buf = growGifBuffer(data.buf)
@@ -95,10 +95,10 @@ function writeCT(data: GifEncodeData, ctList: Array<Array<number>>) {
 
 /**
  * write application extension
- * @param data 
- * @param appInfo 
+ * @param data
+ * @param appInfo
  */
-function writeAppExt(data: GifEncodeData, appInfo: AppExt) {
+function writeAppExt (data: GifEncodeData, appInfo: AppExt) {
   // for NETSCAPE extension, the number of bytes is 18
   if (data.ptr + 18 >= data.buf.length) {
     data.buf = growGifBuffer(data.buf)
@@ -127,11 +127,26 @@ function writeAppExt(data: GifEncodeData, appInfo: AppExt) {
 
 /**
  * write frames
- * @param data 
- * @param frames 
+ * @param data
+ * @param frames
  * @param gctSize global color table size
  */
-function writeFrames(data: GifEncodeData, frames: Array<GifFrameData>, gctSize: number) {
+async function writeFrames (data: GifEncodeData, frames: Array<GifFrameData>, gctSize: number) {
+  // compress imageData in workers
+  const framesMinCodeSize: Array<number> = []
+  const s = window.performance.now()
+  const compressedImageData = await Promise.all(
+    frames.map((frame, idx) => {
+      framesMinCodeSize[idx] = frame.lctFlag ? getBitsByNum(frame.lctSize) : getBitsByNum(gctSize)
+      return worker({
+        action: 'gifLzwEncode',
+        param: [framesMinCodeSize[idx], frame.imageData],
+        // there is no need of transferable in here, transferable buffer will cause detached buffer error when you call encode twice in a gifData
+      })
+    })
+  )
+  console.log('encode frames buffer: ', window.performance.now() - s)
+
   for (let i = 0, len = frames.length; i < len; i++) {
     const frame = frames[i]
     // write graphic control extension
@@ -141,8 +156,7 @@ function writeFrames(data: GifEncodeData, frames: Array<GifFrameData>, gctSize: 
     // write local table flag
     frame.lctFlag && writeCT(data, frame.lctList)
     // write image data
-    const minCodeSize = frame.lctFlag ? getBitsByNum(frame.lctSize) : getBitsByNum(gctSize)
-    const compressedBuf = GifLZW.encode(minCodeSize, frame.imageData)
+    const compressedBuf = compressedImageData[i] as Uint8Array
 
     // console.log(i, compressedBuf)
 
@@ -152,8 +166,8 @@ function writeFrames(data: GifEncodeData, frames: Array<GifFrameData>, gctSize: 
       data.buf = growGifBuffer(data.buf)
     }
 
-    data.buf[data.ptr++] = minCodeSize
-    
+    data.buf[data.ptr++] = framesMinCodeSize[i]
+
     let bolckSizeIdx = data.ptr
     for (let i = 0, len = compressedBuf.length; i < len; i++) {
       if (bolckSizeIdx === data.ptr) {
@@ -173,10 +187,10 @@ function writeFrames(data: GifEncodeData, frames: Array<GifFrameData>, gctSize: 
 
 /**
  * write graphic control extension
- * @param data 
- * @param frame 
+ * @param data
+ * @param frame
  */
-function writeGCE(data: GifEncodeData, frame: GifFrameData) {
+function writeGCE (data: GifEncodeData, frame: GifFrameData) {
   // number of bytes in GCE
   if (data.ptr + 8 >= data.buf.length) {
     data.buf = growGifBuffer(data.buf)
@@ -204,10 +218,10 @@ function writeGCE(data: GifEncodeData, frame: GifFrameData) {
 
 /**
  * write image descriptor
- * @param data 
- * @param frame 
+ * @param data
+ * @param frame
  */
-function writeID(data: GifEncodeData, frame: GifFrameData) {
+function writeID (data: GifEncodeData, frame: GifFrameData) {
   // number of bytes in this block
   if (data.ptr + 10 >= data.buf.length) {
     data.buf = growGifBuffer(data.buf)
@@ -237,9 +251,9 @@ function writeID(data: GifEncodeData, frame: GifFrameData) {
 
 /**
  * grow gif buffer
- * @param buf 
- * @returns 
+ * @param buf
+ * @returns
  */
-function growGifBuffer(buf: Uint8Array): Uint8Array {
+function growGifBuffer (buf: Uint8Array): Uint8Array {
   return bufferGrow(buf, 1024 * 1024) as Uint8Array
 }

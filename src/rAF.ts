@@ -1,9 +1,11 @@
-export default function rAF(callbackQueue: Array<Function>) {
+import { AnyFuncType } from './types'
+
+export default function rAF (callbackQueue: Array<AnyFuncType>) {
   const now = performance.now()
-  let interval = 1000 / 60
+  const interval = 1000 / 60
   let timer = 0
   let last = now
-  function c(time: number) {
+  function c (time: number) {
     if (interval <= time - last) {
       last = time - ((time - last) % interval)
       callbackQueue.map(callback => {
@@ -14,10 +16,10 @@ export default function rAF(callbackQueue: Array<Function>) {
   }
   timer = window.requestAnimationFrame(c)
   return {
-    cancel() {
+    cancel () {
       if (timer) {
         window.cancelAnimationFrame(timer)
       }
-    }
+    },
   }
 }

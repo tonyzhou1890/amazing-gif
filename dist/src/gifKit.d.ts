@@ -4,11 +4,11 @@ declare const kit: {
     /**
      * decode gif (ArrayBuffer)
      */
-    decode(buf: ArrayBuffer, errorCallback: Function): GifData | undefined;
+    decode(buf: ArrayBuffer, errorCallback: Function): Promise<GifData | undefined>;
     /**
      * encode gif
      */
-    encode(gifData: GifData): Uint8Array;
+    encode(gifData: GifData): Promise<Uint8Array>;
     /**
      * get frame ImageData
      * single frame, support transparent, without regard to disposal method

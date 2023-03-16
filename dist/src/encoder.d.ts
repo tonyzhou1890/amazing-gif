@@ -5,4 +5,4 @@ import { GifData } from './types';
  * @param errorCallback
  * @returns
  */
-export default function encode(gifData: GifData): Uint8Array;
+export default function encode(gifData: GifData): Promise<Uint8Array>;

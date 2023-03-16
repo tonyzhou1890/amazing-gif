@@ -154,15 +154,6 @@ function getBitsByNum(num) {
     return exp;
 }
 /**
- * getBits
- * @param num 1 byte
- * @param bitIdx bit index(from right to left)
- * @param length required bits length
- */
-function getBits(num, bitIdx, length) {
-    return (num >> bitIdx) & ((1 << length) - 1);
-}
-/**
  * setBits
  * @param targetNum 1 byte
  * @param bitIdx bit index (from right to left)
@@ -201,200 +192,135 @@ const defaultConfig = {
 const speedList = [0.5, 1.0, 1.5, 2.0];
 const defaultBgColor = [0, 0, 0, 255];
 
-// https://www.cnblogs.com/jiang08/articles/3171319.html
-const GifLZW = {
-    /**
-     * decode gif buffer
-     * @param codeSize
-     * @param buf
-     * @returns
-     */
-    decode: (codeSize, buf) => {
-        function genTable() {
-            return new Array((2 ** codeSize) + 2).fill(0).map((_, index) => String.fromCharCode(index));
+var WorkerClass = null;
+
+try {
+    var WorkerThreads =
+        typeof module !== 'undefined' && typeof module.require === 'function' && module.require('worker_threads') ||
+        typeof __non_webpack_require__ === 'function' && __non_webpack_require__('worker_threads') ||
+        typeof require === 'function' && require('worker_threads');
+    WorkerClass = WorkerThreads.Worker;
+} catch(e) {} // eslint-disable-line
+
+function decodeBase64$1(base64, enableUnicode) {
+    return Buffer.from(base64, 'base64').toString(enableUnicode ? 'utf16' : 'utf8');
+}
+
+function createBase64WorkerFactory$2(base64, sourcemapArg, enableUnicodeArg) {
+    var sourcemap = sourcemapArg === undefined ? null : sourcemapArg;
+    var enableUnicode = enableUnicodeArg === undefined ? false : enableUnicodeArg;
+    var source = decodeBase64$1(base64, enableUnicode);
+    var start = source.indexOf('\n', 10) + 1;
+    var body = source.substring(start) + (sourcemap ? '\/\/# sourceMappingURL=' + sourcemap : '');
+    return function WorkerFactory(options) {
+        return new WorkerClass(body, Object.assign({}, options, { eval: true }));
+    };
+}
+
+function decodeBase64(base64, enableUnicode) {
+    var binaryString = atob(base64);
+    if (enableUnicode) {
+        var binaryView = new Uint8Array(binaryString.length);
+        for (var i = 0, n = binaryString.length; i < n; ++i) {
+            binaryView[i] = binaryString.charCodeAt(i);
         }
-        let table = genTable();
-        const clearCode = 2 ** codeSize;
-        const endCode = 2 ** codeSize + 1;
-        let bitLength = codeSize + 1;
-        let stream = '';
-        let decodeStart = true;
-        let byteLen = buf.length;
-        let byteIdx = 0;
-        let bitIdx = 0;
-        let requiredBits = bitLength;
-        let code = 0;
-        let k = '';
-        let oldCode = 0;
-        while (byteIdx < byteLen) {
-            requiredBits = bitLength;
-            code = 0;
-            // read code
-            while (requiredBits !== 0) {
-                if (8 - bitIdx >= requiredBits) {
-                    code += getBits(buf[byteIdx], bitIdx, requiredBits) << (bitLength - requiredBits);
-                    bitIdx += requiredBits;
-                    requiredBits = 0;
-                }
-                else {
-                    code += getBits(buf[byteIdx], bitIdx, 8 - bitIdx) << (bitLength - requiredBits);
-                    requiredBits -= (8 - bitIdx);
-                    bitIdx = 8;
-                }
-                // overflow
-                if (bitIdx === 8) {
-                    byteIdx++;
-                    bitIdx = 0;
-                    if (byteIdx >= byteLen)
-                        break;
-                }
-            }
-            if (code === endCode)
-                break;
-            // code is clear code, reset table and others
-            if (code === clearCode) {
-                table = genTable();
-                bitLength = codeSize + 1;
-                decodeStart = true;
-                continue;
-            }
-            // if code exists in table, append code to stream
-            if (table[code] !== undefined) {
-                // first code
-                if (decodeStart) {
-                    stream += table[code];
-                    oldCode = code;
-                    decodeStart = false;
-                }
-                else {
-                    stream += table[code];
-                    k = table[code][0];
-                    table.push(table[oldCode] + k);
-                    oldCode = code;
-                }
-            }
-            else {
-                // if not
-                // console.log(table, code, oldCode)
-                if (table[oldCode] === undefined) {
-                    console.log(oldCode, stream.length);
-                }
-                k = table[oldCode][0];
-                stream += table[oldCode] + k;
-                table.push(table[oldCode] + k);
-                oldCode = code;
-            }
-            // check cap of table
-            if (table.length >= (2 ** bitLength)) {
-                if (bitLength < 12) {
-                    bitLength++;
-                }
-            }
-        }
-        let res = new Uint8Array(stream.length);
-        for (let i = 0; i < stream.length; i++) {
-            res[i] = stream.charCodeAt(i);
-        }
-        return res;
-    },
-    /**
-     * encode gif color indices buffer
-     * @param codeSize
-     * @param buf
-     */
-    encode: (codeSize, buf) => {
-        // generate original code table
-        function genTable() {
-            const t = new Map();
-            new Array(2 ** codeSize).fill(0).map((_, index) => {
-                t.set(String.fromCharCode(index), index);
-            });
-            return t;
-        }
-        // write to buf
-        function write(code) {
-            let requiredBits = bitLength;
-            // if stream may not enough, expand stream
-            if (byteIdx + 2 >= stream.length) {
-                const newStream = new Uint8Array(stream.length + 256);
-                newStream.set(stream);
-                stream = newStream;
-            }
-            while (requiredBits) {
-                if (8 - bitIdx >= requiredBits) {
-                    stream[byteIdx] = setBits(stream[byteIdx], bitIdx, requiredBits, code);
-                    bitIdx += requiredBits;
-                    requiredBits = 0;
-                }
-                else {
-                    stream[byteIdx] = setBits(stream[byteIdx], bitIdx, 8 - bitIdx, code);
-                    code = code >> (8 - bitIdx);
-                    requiredBits -= 8 - bitIdx;
-                    bitIdx = 8;
-                }
-                if (bitIdx === 8) {
-                    bitIdx = 0;
-                    byteIdx++;
-                }
-            }
-        }
-        let table = genTable();
-        const clearCode = 2 ** codeSize;
-        const endCode = 2 ** codeSize + 1;
-        let tableLength = 2 ** codeSize + 2;
-        let bitLength = codeSize + 1;
-        let curBitMaxTableLength = 2 ** bitLength;
-        // this will affect the size of the compressed buf
-        // 4093 is more efficent in the example pic 'cat1.gif'
-        // let maxTableLength = 2 ** 12
-        let maxTableLength = 4093;
-        let stream = new Uint8Array(256);
-        let byteIdx = 0;
-        let bitIdx = 0;
-        let p = '';
-        let c = '';
-        // first code in data stream must be clear code
-        write(clearCode);
-        for (let i = 0, len = buf.length; i < len; i++) {
-            c = String.fromCharCode(buf[i]);
-            if (table.has(p + c)) {
-                p = p + c;
-            }
-            else {
-                write(table.get(p));
-                if (tableLength === maxTableLength) {
-                    write(clearCode);
-                    // reset code table and bitLength
-                    table = genTable();
-                    tableLength = 2 ** codeSize + 2;
-                    bitLength = codeSize + 1;
-                    curBitMaxTableLength = 2 ** bitLength;
-                }
-                else if (tableLength === curBitMaxTableLength) {
-                    bitLength++;
-                    curBitMaxTableLength = 2 ** bitLength;
-                    table.set(p + c, tableLength++);
-                }
-                else {
-                    table.set(p + c, tableLength++);
-                }
-                p = c;
-                c = '';
-            }
-        }
-        if (p) {
-            write(table.get(p));
-        }
-        write(endCode);
-        let final = null;
-        if (bitIdx) {
-            final = stream.slice(0, byteIdx + 1);
+        return String.fromCharCode.apply(null, new Uint16Array(binaryView.buffer));
+    }
+    return binaryString;
+}
+
+function createURL(base64, sourcemapArg, enableUnicodeArg) {
+    var sourcemap = sourcemapArg === undefined ? null : sourcemapArg;
+    var enableUnicode = enableUnicodeArg === undefined ? false : enableUnicodeArg;
+    var source = decodeBase64(base64, enableUnicode);
+    var start = source.indexOf('\n', 10) + 1;
+    var body = source.substring(start) + (sourcemap ? '\/\/# sourceMappingURL=' + sourcemap : '');
+    var blob = new Blob([body], { type: 'application/javascript' });
+    return URL.createObjectURL(blob);
+}
+
+function createBase64WorkerFactory$1(base64, sourcemapArg, enableUnicodeArg) {
+    var url;
+    return function WorkerFactory(options) {
+        url = url || createURL(base64, sourcemapArg, enableUnicodeArg);
+        return new Worker(url, options);
+    };
+}
+
+var kIsNodeJS = Object.prototype.toString.call(typeof process !== 'undefined' ? process : 0) === '[object process]';
+
+function isNodeJS() {
+    return kIsNodeJS;
+}
+
+function createBase64WorkerFactory(base64, sourcemapArg, enableUnicodeArg) {
+    if (isNodeJS()) {
+        return createBase64WorkerFactory$2(base64, sourcemapArg, enableUnicodeArg);
+    }
+    return createBase64WorkerFactory$1(base64, sourcemapArg, enableUnicodeArg);
+}
+
+var WorkerFactory = createBase64WorkerFactory('Lyogcm9sbHVwLXBsdWdpbi13ZWItd29ya2VyLWxvYWRlciAqLwooZnVuY3Rpb24gKCkgewogICAgJ3VzZSBzdHJpY3QnOwoKICAgIC8qKgogICAgICogQG1vZHVsZSBoZWxwZXJzCiAgICAgKi8KICAgIC8qKgogICAgICogZ2V0Qml0cwogICAgICogQHBhcmFtIG51bSAxIGJ5dGUKICAgICAqIEBwYXJhbSBiaXRJZHggYml0IGluZGV4KGZyb20gcmlnaHQgdG8gbGVmdCkKICAgICAqIEBwYXJhbSBsZW5ndGggcmVxdWlyZWQgYml0cyBsZW5ndGgKICAgICAqLwogICAgZnVuY3Rpb24gZ2V0Qml0cyhudW0sIGJpdElkeCwgbGVuZ3RoKSB7CiAgICAgICAgcmV0dXJuIChudW0gPj4gYml0SWR4KSAmICgoMSA8PCBsZW5ndGgpIC0gMSk7CiAgICB9CiAgICAvKioKICAgICAqIHNldEJpdHMKICAgICAqIEBwYXJhbSB0YXJnZXROdW0gMSBieXRlCiAgICAgKiBAcGFyYW0gYml0SWR4IGJpdCBpbmRleCAoZnJvbSByaWdodCB0byBsZWZ0KQogICAgICogQHBhcmFtIGxlbmd0aCByZXF1aXJlZCBiaXRzIGxlbmd0aAogICAgICogQHBhcmFtIHNvdXJjZU51bQogICAgICogQHJldHVybnMKICAgICAqLwogICAgZnVuY3Rpb24gc2V0Qml0cyh0YXJnZXROdW0sIGJpdElkeCwgbGVuZ3RoLCBzb3VyY2VOdW0pIHsKICAgICAgICByZXR1cm4gKCgoKDEgPDwgbGVuZ3RoKSAtIDEpICYgc291cmNlTnVtKSA8PCBiaXRJZHgpIHwgdGFyZ2V0TnVtOwogICAgfQoKICAgIC8vIGh0dHBzOi8vd3d3LmNuYmxvZ3MuY29tL2ppYW5nMDgvYXJ0aWNsZXMvMzE3MTMxOS5odG1sCiAgICBjb25zdCBHaWZMWlcgPSB7CiAgICAgICAgLyoqCiAgICAgICAgICogZGVjb2RlIGdpZiBidWZmZXIKICAgICAgICAgKiBAcGFyYW0gY29kZVNpemUKICAgICAgICAgKiBAcGFyYW0gYnVmCiAgICAgICAgICogQHJldHVybnMKICAgICAgICAgKi8KICAgICAgICBkZWNvZGU6IChjb2RlU2l6ZSwgYnVmKSA9PiB7CiAgICAgICAgICAgIGZ1bmN0aW9uIGdlblRhYmxlKCkgewogICAgICAgICAgICAgICAgcmV0dXJuIG5ldyBBcnJheSgoMiAqKiBjb2RlU2l6ZSkgKyAyKS5maWxsKDApLm1hcCgoXywgaW5kZXgpID0+IFN0cmluZy5mcm9tQ2hhckNvZGUoaW5kZXgpKTsKICAgICAgICAgICAgfQogICAgICAgICAgICBsZXQgdGFibGUgPSBnZW5UYWJsZSgpOwogICAgICAgICAgICBjb25zdCBjbGVhckNvZGUgPSAyICoqIGNvZGVTaXplOwogICAgICAgICAgICBjb25zdCBlbmRDb2RlID0gMiAqKiBjb2RlU2l6ZSArIDE7CiAgICAgICAgICAgIGxldCBiaXRMZW5ndGggPSBjb2RlU2l6ZSArIDE7CiAgICAgICAgICAgIGxldCBzdHJlYW0gPSAnJzsKICAgICAgICAgICAgbGV0IGRlY29kZVN0YXJ0ID0gdHJ1ZTsKICAgICAgICAgICAgbGV0IGJ5dGVMZW4gPSBidWYubGVuZ3RoOwogICAgICAgICAgICBsZXQgYnl0ZUlkeCA9IDA7CiAgICAgICAgICAgIGxldCBiaXRJZHggPSAwOwogICAgICAgICAgICBsZXQgcmVxdWlyZWRCaXRzID0gYml0TGVuZ3RoOwogICAgICAgICAgICBsZXQgY29kZSA9IDA7CiAgICAgICAgICAgIGxldCBrID0gJyc7CiAgICAgICAgICAgIGxldCBvbGRDb2RlID0gMDsKICAgICAgICAgICAgd2hpbGUgKGJ5dGVJZHggPCBieXRlTGVuKSB7CiAgICAgICAgICAgICAgICByZXF1aXJlZEJpdHMgPSBiaXRMZW5ndGg7CiAgICAgICAgICAgICAgICBjb2RlID0gMDsKICAgICAgICAgICAgICAgIC8vIHJlYWQgY29kZQogICAgICAgICAgICAgICAgd2hpbGUgKHJlcXVpcmVkQml0cyAhPT0gMCkgewogICAgICAgICAgICAgICAgICAgIGlmICg4IC0gYml0SWR4ID49IHJlcXVpcmVkQml0cykgewogICAgICAgICAgICAgICAgICAgICAgICBjb2RlICs9IGdldEJpdHMoYnVmW2J5dGVJZHhdLCBiaXRJZHgsIHJlcXVpcmVkQml0cykgPDwgKGJpdExlbmd0aCAtIHJlcXVpcmVkQml0cyk7CiAgICAgICAgICAgICAgICAgICAgICAgIGJpdElkeCArPSByZXF1aXJlZEJpdHM7CiAgICAgICAgICAgICAgICAgICAgICAgIHJlcXVpcmVkQml0cyA9IDA7CiAgICAgICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgICAgIGVsc2UgewogICAgICAgICAgICAgICAgICAgICAgICBjb2RlICs9IGdldEJpdHMoYnVmW2J5dGVJZHhdLCBiaXRJZHgsIDggLSBiaXRJZHgpIDw8IChiaXRMZW5ndGggLSByZXF1aXJlZEJpdHMpOwogICAgICAgICAgICAgICAgICAgICAgICByZXF1aXJlZEJpdHMgLT0gKDggLSBiaXRJZHgpOwogICAgICAgICAgICAgICAgICAgICAgICBiaXRJZHggPSA4OwogICAgICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgICAgICAvLyBvdmVyZmxvdwogICAgICAgICAgICAgICAgICAgIGlmIChiaXRJZHggPT09IDgpIHsKICAgICAgICAgICAgICAgICAgICAgICAgYnl0ZUlkeCsrOwogICAgICAgICAgICAgICAgICAgICAgICBiaXRJZHggPSAwOwogICAgICAgICAgICAgICAgICAgICAgICBpZiAoYnl0ZUlkeCA+PSBieXRlTGVuKQogICAgICAgICAgICAgICAgICAgICAgICAgICAgYnJlYWs7CiAgICAgICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgaWYgKGNvZGUgPT09IGVuZENvZGUpCiAgICAgICAgICAgICAgICAgICAgYnJlYWs7CiAgICAgICAgICAgICAgICAvLyBjb2RlIGlzIGNsZWFyIGNvZGUsIHJlc2V0IHRhYmxlIGFuZCBvdGhlcnMKICAgICAgICAgICAgICAgIGlmIChjb2RlID09PSBjbGVhckNvZGUpIHsKICAgICAgICAgICAgICAgICAgICB0YWJsZSA9IGdlblRhYmxlKCk7CiAgICAgICAgICAgICAgICAgICAgYml0TGVuZ3RoID0gY29kZVNpemUgKyAxOwogICAgICAgICAgICAgICAgICAgIGRlY29kZVN0YXJ0ID0gdHJ1ZTsKICAgICAgICAgICAgICAgICAgICBjb250aW51ZTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgIC8vIGlmIGNvZGUgZXhpc3RzIGluIHRhYmxlLCBhcHBlbmQgY29kZSB0byBzdHJlYW0KICAgICAgICAgICAgICAgIGlmICh0YWJsZVtjb2RlXSAhPT0gdW5kZWZpbmVkKSB7CiAgICAgICAgICAgICAgICAgICAgLy8gZmlyc3QgY29kZQogICAgICAgICAgICAgICAgICAgIGlmIChkZWNvZGVTdGFydCkgewogICAgICAgICAgICAgICAgICAgICAgICBzdHJlYW0gKz0gdGFibGVbY29kZV07CiAgICAgICAgICAgICAgICAgICAgICAgIG9sZENvZGUgPSBjb2RlOwogICAgICAgICAgICAgICAgICAgICAgICBkZWNvZGVTdGFydCA9IGZhbHNlOwogICAgICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgICAgICBlbHNlIHsKICAgICAgICAgICAgICAgICAgICAgICAgc3RyZWFtICs9IHRhYmxlW2NvZGVdOwogICAgICAgICAgICAgICAgICAgICAgICBrID0gdGFibGVbY29kZV1bMF07CiAgICAgICAgICAgICAgICAgICAgICAgIHRhYmxlLnB1c2godGFibGVbb2xkQ29kZV0gKyBrKTsKICAgICAgICAgICAgICAgICAgICAgICAgb2xkQ29kZSA9IGNvZGU7CiAgICAgICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgZWxzZSB7CiAgICAgICAgICAgICAgICAgICAgLy8gaWYgbm90CiAgICAgICAgICAgICAgICAgICAgLy8gY29uc29sZS5sb2codGFibGUsIGNvZGUsIG9sZENvZGUpCiAgICAgICAgICAgICAgICAgICAgaWYgKHRhYmxlW29sZENvZGVdID09PSB1bmRlZmluZWQpIHsKICAgICAgICAgICAgICAgICAgICAgICAgY29uc29sZS5sb2cob2xkQ29kZSwgc3RyZWFtLmxlbmd0aCk7CiAgICAgICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgICAgIGsgPSB0YWJsZVtvbGRDb2RlXVswXTsKICAgICAgICAgICAgICAgICAgICBzdHJlYW0gKz0gdGFibGVbb2xkQ29kZV0gKyBrOwogICAgICAgICAgICAgICAgICAgIHRhYmxlLnB1c2godGFibGVbb2xkQ29kZV0gKyBrKTsKICAgICAgICAgICAgICAgICAgICBvbGRDb2RlID0gY29kZTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgIC8vIGNoZWNrIGNhcCBvZiB0YWJsZQogICAgICAgICAgICAgICAgaWYgKHRhYmxlLmxlbmd0aCA+PSAoMiAqKiBiaXRMZW5ndGgpKSB7CiAgICAgICAgICAgICAgICAgICAgaWYgKGJpdExlbmd0aCA8IDEyKSB7CiAgICAgICAgICAgICAgICAgICAgICAgIGJpdExlbmd0aCsrOwogICAgICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgfQogICAgICAgICAgICBsZXQgcmVzID0gbmV3IFVpbnQ4QXJyYXkoc3RyZWFtLmxlbmd0aCk7CiAgICAgICAgICAgIGZvciAobGV0IGkgPSAwOyBpIDwgc3RyZWFtLmxlbmd0aDsgaSsrKSB7CiAgICAgICAgICAgICAgICByZXNbaV0gPSBzdHJlYW0uY2hhckNvZGVBdChpKTsKICAgICAgICAgICAgfQogICAgICAgICAgICByZXR1cm4gcmVzOwogICAgICAgIH0sCiAgICAgICAgLyoqCiAgICAgICAgICogZW5jb2RlIGdpZiBjb2xvciBpbmRpY2VzIGJ1ZmZlcgogICAgICAgICAqIEBwYXJhbSBjb2RlU2l6ZQogICAgICAgICAqIEBwYXJhbSBidWYKICAgICAgICAgKi8KICAgICAgICBlbmNvZGU6IChjb2RlU2l6ZSwgYnVmKSA9PiB7CiAgICAgICAgICAgIC8vIGdlbmVyYXRlIG9yaWdpbmFsIGNvZGUgdGFibGUKICAgICAgICAgICAgZnVuY3Rpb24gZ2VuVGFibGUoKSB7CiAgICAgICAgICAgICAgICBjb25zdCB0ID0gbmV3IE1hcCgpOwogICAgICAgICAgICAgICAgbmV3IEFycmF5KDIgKiogY29kZVNpemUpLmZpbGwoMCkubWFwKChfLCBpbmRleCkgPT4gewogICAgICAgICAgICAgICAgICAgIHQuc2V0KFN0cmluZy5mcm9tQ2hhckNvZGUoaW5kZXgpLCBpbmRleCk7CiAgICAgICAgICAgICAgICB9KTsKICAgICAgICAgICAgICAgIHJldHVybiB0OwogICAgICAgICAgICB9CiAgICAgICAgICAgIC8vIHdyaXRlIHRvIGJ1ZgogICAgICAgICAgICBmdW5jdGlvbiB3cml0ZShjb2RlKSB7CiAgICAgICAgICAgICAgICBsZXQgcmVxdWlyZWRCaXRzID0gYml0TGVuZ3RoOwogICAgICAgICAgICAgICAgLy8gaWYgc3RyZWFtIG1heSBub3QgZW5vdWdoLCBleHBhbmQgc3RyZWFtCiAgICAgICAgICAgICAgICBpZiAoYnl0ZUlkeCArIDIgPj0gc3RyZWFtLmxlbmd0aCkgewogICAgICAgICAgICAgICAgICAgIGNvbnN0IG5ld1N0cmVhbSA9IG5ldyBVaW50OEFycmF5KHN0cmVhbS5sZW5ndGggKyAyNTYpOwogICAgICAgICAgICAgICAgICAgIG5ld1N0cmVhbS5zZXQoc3RyZWFtKTsKICAgICAgICAgICAgICAgICAgICBzdHJlYW0gPSBuZXdTdHJlYW07CiAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgICAgICB3aGlsZSAocmVxdWlyZWRCaXRzKSB7CiAgICAgICAgICAgICAgICAgICAgaWYgKDggLSBiaXRJZHggPj0gcmVxdWlyZWRCaXRzKSB7CiAgICAgICAgICAgICAgICAgICAgICAgIHN0cmVhbVtieXRlSWR4XSA9IHNldEJpdHMoc3RyZWFtW2J5dGVJZHhdLCBiaXRJZHgsIHJlcXVpcmVkQml0cywgY29kZSk7CiAgICAgICAgICAgICAgICAgICAgICAgIGJpdElkeCArPSByZXF1aXJlZEJpdHM7CiAgICAgICAgICAgICAgICAgICAgICAgIHJlcXVpcmVkQml0cyA9IDA7CiAgICAgICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgICAgIGVsc2UgewogICAgICAgICAgICAgICAgICAgICAgICBzdHJlYW1bYnl0ZUlkeF0gPSBzZXRCaXRzKHN0cmVhbVtieXRlSWR4XSwgYml0SWR4LCA4IC0gYml0SWR4LCBjb2RlKTsKICAgICAgICAgICAgICAgICAgICAgICAgY29kZSA9IGNvZGUgPj4gKDggLSBiaXRJZHgpOwogICAgICAgICAgICAgICAgICAgICAgICByZXF1aXJlZEJpdHMgLT0gOCAtIGJpdElkeDsKICAgICAgICAgICAgICAgICAgICAgICAgYml0SWR4ID0gODsKICAgICAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgICAgICAgICAgaWYgKGJpdElkeCA9PT0gOCkgewogICAgICAgICAgICAgICAgICAgICAgICBiaXRJZHggPSAwOwogICAgICAgICAgICAgICAgICAgICAgICBieXRlSWR4Kys7CiAgICAgICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgfQogICAgICAgICAgICB9CiAgICAgICAgICAgIGxldCB0YWJsZSA9IGdlblRhYmxlKCk7CiAgICAgICAgICAgIGNvbnN0IGNsZWFyQ29kZSA9IDIgKiogY29kZVNpemU7CiAgICAgICAgICAgIGNvbnN0IGVuZENvZGUgPSAyICoqIGNvZGVTaXplICsgMTsKICAgICAgICAgICAgbGV0IHRhYmxlTGVuZ3RoID0gMiAqKiBjb2RlU2l6ZSArIDI7CiAgICAgICAgICAgIGxldCBiaXRMZW5ndGggPSBjb2RlU2l6ZSArIDE7CiAgICAgICAgICAgIGxldCBjdXJCaXRNYXhUYWJsZUxlbmd0aCA9IDIgKiogYml0TGVuZ3RoOwogICAgICAgICAgICAvLyB0aGlzIHdpbGwgYWZmZWN0IHRoZSBzaXplIG9mIHRoZSBjb21wcmVzc2VkIGJ1ZgogICAgICAgICAgICAvLyA0MDkzIGlzIG1vcmUgZWZmaWNlbnQgaW4gdGhlIGV4YW1wbGUgcGljICdjYXQxLmdpZicKICAgICAgICAgICAgLy8gbGV0IG1heFRhYmxlTGVuZ3RoID0gMiAqKiAxMgogICAgICAgICAgICBsZXQgbWF4VGFibGVMZW5ndGggPSA0MDkzOwogICAgICAgICAgICBsZXQgc3RyZWFtID0gbmV3IFVpbnQ4QXJyYXkoMjU2KTsKICAgICAgICAgICAgbGV0IGJ5dGVJZHggPSAwOwogICAgICAgICAgICBsZXQgYml0SWR4ID0gMDsKICAgICAgICAgICAgbGV0IHAgPSAnJzsKICAgICAgICAgICAgbGV0IGMgPSAnJzsKICAgICAgICAgICAgLy8gZmlyc3QgY29kZSBpbiBkYXRhIHN0cmVhbSBtdXN0IGJlIGNsZWFyIGNvZGUKICAgICAgICAgICAgd3JpdGUoY2xlYXJDb2RlKTsKICAgICAgICAgICAgZm9yIChsZXQgaSA9IDAsIGxlbiA9IGJ1Zi5sZW5ndGg7IGkgPCBsZW47IGkrKykgewogICAgICAgICAgICAgICAgYyA9IFN0cmluZy5mcm9tQ2hhckNvZGUoYnVmW2ldKTsKICAgICAgICAgICAgICAgIGlmICh0YWJsZS5oYXMocCArIGMpKSB7CiAgICAgICAgICAgICAgICAgICAgcCA9IHAgKyBjOwogICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgZWxzZSB7CiAgICAgICAgICAgICAgICAgICAgd3JpdGUodGFibGUuZ2V0KHApKTsKICAgICAgICAgICAgICAgICAgICBpZiAodGFibGVMZW5ndGggPT09IG1heFRhYmxlTGVuZ3RoKSB7CiAgICAgICAgICAgICAgICAgICAgICAgIHdyaXRlKGNsZWFyQ29kZSk7CiAgICAgICAgICAgICAgICAgICAgICAgIC8vIHJlc2V0IGNvZGUgdGFibGUgYW5kIGJpdExlbmd0aAogICAgICAgICAgICAgICAgICAgICAgICB0YWJsZSA9IGdlblRhYmxlKCk7CiAgICAgICAgICAgICAgICAgICAgICAgIHRhYmxlTGVuZ3RoID0gMiAqKiBjb2RlU2l6ZSArIDI7CiAgICAgICAgICAgICAgICAgICAgICAgIGJpdExlbmd0aCA9IGNvZGVTaXplICsgMTsKICAgICAgICAgICAgICAgICAgICAgICAgY3VyQml0TWF4VGFibGVMZW5ndGggPSAyICoqIGJpdExlbmd0aDsKICAgICAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgICAgICAgICAgZWxzZSBpZiAodGFibGVMZW5ndGggPT09IGN1ckJpdE1heFRhYmxlTGVuZ3RoKSB7CiAgICAgICAgICAgICAgICAgICAgICAgIGJpdExlbmd0aCsrOwogICAgICAgICAgICAgICAgICAgICAgICBjdXJCaXRNYXhUYWJsZUxlbmd0aCA9IDIgKiogYml0TGVuZ3RoOwogICAgICAgICAgICAgICAgICAgICAgICB0YWJsZS5zZXQocCArIGMsIHRhYmxlTGVuZ3RoKyspOwogICAgICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgICAgICBlbHNlIHsKICAgICAgICAgICAgICAgICAgICAgICAgdGFibGUuc2V0KHAgKyBjLCB0YWJsZUxlbmd0aCsrKTsKICAgICAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgICAgICAgICAgcCA9IGM7CiAgICAgICAgICAgICAgICAgICAgYyA9ICcnOwogICAgICAgICAgICAgICAgfQogICAgICAgICAgICB9CiAgICAgICAgICAgIGlmIChwKSB7CiAgICAgICAgICAgICAgICB3cml0ZSh0YWJsZS5nZXQocCkpOwogICAgICAgICAgICB9CiAgICAgICAgICAgIHdyaXRlKGVuZENvZGUpOwogICAgICAgICAgICBsZXQgZmluYWwgPSBudWxsOwogICAgICAgICAgICBpZiAoYml0SWR4KSB7CiAgICAgICAgICAgICAgICBmaW5hbCA9IHN0cmVhbS5zbGljZSgwLCBieXRlSWR4ICsgMSk7CiAgICAgICAgICAgIH0KICAgICAgICAgICAgZWxzZSB7CiAgICAgICAgICAgICAgICBmaW5hbCA9IHN0cmVhbS5zbGljZSgwLCBieXRlSWR4KTsKICAgICAgICAgICAgfQogICAgICAgICAgICByZXR1cm4gZmluYWw7CiAgICAgICAgfQogICAgfTsKCiAgICBjb25zdCB1dGlscyA9IHsKICAgICAgICBnaWZMendEZWNvZGU6IEdpZkxaVy5kZWNvZGUsCiAgICAgICAgZ2lmTHp3RW5jb2RlOiBHaWZMWlcuZW5jb2RlCiAgICB9OwogICAgb25tZXNzYWdlID0gKGUpID0+IHsKICAgICAgICBjb25zdCB7IGFjdGlvbiwgcGFyYW0sIF9zaWduIH0gPSBlLmRhdGE7CiAgICAgICAgaWYgKHR5cGVvZiB1dGlsc1thY3Rpb25dID09PSAnZnVuY3Rpb24nKSB7CiAgICAgICAgICAgIGNvbnN0IHJlcyA9IHsKICAgICAgICAgICAgICAgIGFjdGlvbiwKICAgICAgICAgICAgICAgIHJlc3VsdDogdXRpbHNbYWN0aW9uXSguLi4ocGFyYW0gIT09IG51bGwgJiYgcGFyYW0gIT09IHZvaWQgMCA/IHBhcmFtIDogW10pKSwKICAgICAgICAgICAgICAgIF9zaWduCiAgICAgICAgICAgIH07CiAgICAgICAgICAgIHBvc3RNZXNzYWdlKHJlcyk7CiAgICAgICAgfQogICAgICAgIGVsc2UgewogICAgICAgICAgICBjb25zb2xlLmxvZygn5oyH5a6a5pON5L2c5LiN5a2Y5ZyoJyk7CiAgICAgICAgfQogICAgfTsKCn0pKCk7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPXdvcmtlclV0aWxzLmpzLm1hcAoK', null, false);
+/* eslint-enable */
+
+const workerNum = Math.max(window.navigator.hardwareConcurrency - 1, 1); // 线程数量
+const quene = new Map();
+const waiting = [];
+const workers = new Array(workerNum).fill(null).map((_, index) => {
+    return ({
+        index,
+        worker: new WorkerFactory(),
+        idle: true // 是否空闲
+    });
+});
+workers.map(item => {
+    item.worker.addEventListener('message', e => {
+        if (!e.data || !e.data._sign) {
+            console.error('worker 返回数据错误');
+            quene.get(e.data._sign).reject('worker 返回数据错误');
         }
         else {
-            final = stream.slice(0, byteIdx);
+            quene.get(e.data._sign).resolve(e.data.result);
+            quene.delete(e.data._sign);
+            item.idle = true;
+            // 尝试接受新任务
+            assignJob();
         }
-        return final;
+    });
+});
+/**
+ * 将等待队列中的任务加入空闲线程
+ */
+function assignJob() {
+    let idleWorker = null;
+    let waitingJob = null;
+    if (waiting.length) {
+        idleWorker = workers.find(item => item.idle);
+        if (idleWorker) {
+            idleWorker.idle = false;
+            waitingJob = waiting.shift();
+            quene.set(waitingJob._sign, waitingJob.p);
+            idleWorker.worker.postMessage(Object.assign(Object.assign({}, waitingJob.job), { _sign: waitingJob._sign }), waitingJob.job.transferable || []);
+        }
     }
+}
+/**
+ * @param job {
+ *  action: '',
+ *  param: [],
+ * }
+ */
+var worker = (job) => {
+    return new Promise((resolve, reject) => {
+        const _sign = Date.now() * Math.random();
+        waiting.push({
+            _sign,
+            job,
+            p: { resolve, reject }
+        });
+        // 分配线程
+        assignJob();
+    });
 };
 
 /**
@@ -402,105 +328,120 @@ const GifLZW = {
  * @param gifBuffer
  * @param errorCallback
  */
-function decode(gifBuffer, errorCallback) {
-    if (!(gifBuffer instanceof ArrayBuffer)) {
-        if (isFunc(errorCallback)) {
-            return errorCallback(errMsgs.gifDataTypeError, 'onDataError');
-        }
-        else {
-            throw new Error(errMsgs.gifDataTypeError);
-        }
-    }
-    // read gifBuffer as Uint8Array
-    const buf = new Uint8Array(gifBuffer);
-    // control steps of processing.
-    const readCtrl = {
-        // current byte index
-        ptr: 0
-    };
-    const gifData = {
-        header: {
-            type: '',
-            isGif: false,
-            version: '',
-            width: 0,
-            height: 0,
-            gctFlag: false,
-            cr: 0,
-            sortFlag: false,
-            gctSize: 0,
-            gctStartByte: 0,
-            gctEndByte: 0,
-            bgIndex: 0,
-            pixelAspect: 0,
-            gctList: []
-        },
-        frames: []
-    };
-    while (readCtrl.ptr < buf.length) {
-        if (readCtrl.ptr === 0) {
-            // read header
-            const header = readHeader(buf, readCtrl);
-            if (!header.isGif) {
-                return errorCallback(errMsgs.notGif, 'onDataError');
-            }
-            Object.assign(gifData.header, header);
-        }
-        else if (readCtrl.ptr === 6) {
-            // read logical screen descriptor
-            const LSD = readLSD(buf, readCtrl);
-            Object.assign(gifData.header, LSD);
-            // global color table list
-            const gctList = LSD.gctFlag ? (++readCtrl.ptr, readGCT(buf, LSD.gctSize, readCtrl)) : [];
-            gifData.header.gctList = gctList;
-        }
-        else if ( // extention flag is 0x21, application flag is 0xff
-        (readCtrl.ptr + 1 < buf.length) &&
-            buf[readCtrl.ptr] === 0x21 &&
-            buf[readCtrl.ptr + 1] === 0xff &&
-            !gifData.appExt // 0x21 0xff will matched times
-        ) {
-            const appExt = readAppExt(buf, readCtrl);
-            gifData.appExt = appExt;
-        }
-        else if ( // Graphic Control Extension
-        readCtrl.ptr + 1 < buf.length &&
-            buf[readCtrl.ptr] === 0x21 &&
-            buf[readCtrl.ptr + 1] === 0xf9) {
-            gifData.frames.push(readFrame(buf, readCtrl));
-        }
-        else if (buf[readCtrl.ptr] === 0x2c) { // Image Descriptor
-            let frame = readFrame(buf, readCtrl);
-            // Graphic Control Extension may not be followed by Image Descriptor, i.e. last frame may not contain real image data
-            const lastFrame = gifData.frames[gifData.frames.length - 1];
-            if (!lastFrame.endByte) {
-                frame.startByte = lastFrame.startByte;
-                frame.disposalMethod = lastFrame.disposalMethod;
-                frame.userInputFlag = lastFrame.userInputFlag;
-                frame.transColorFlag = lastFrame.transColorFlag;
-                frame.delay = lastFrame.delay;
-                frame.transColorIdx = lastFrame.transColorIdx;
-                gifData.frames[gifData.frames.length - 1] = frame;
+var decode = (function decode(gifBuffer, errorCallback) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (!(gifBuffer instanceof ArrayBuffer)) {
+            if (isFunc(errorCallback)) {
+                return errorCallback(errMsgs.gifDataTypeError, 'onDataError');
             }
             else {
-                gifData.frames.push(frame);
+                throw new Error(errMsgs.gifDataTypeError);
             }
         }
-        else if ( // Plain Text Extension
-        readCtrl.ptr + 1 < buf.length &&
-            buf[readCtrl.ptr] === 0x21 &&
-            buf[readCtrl.ptr + 1] === 0x01) {
-            gifData.frames.push(readFrame(buf, readCtrl));
+        // read gifBuffer as Uint8Array
+        const buf = new Uint8Array(gifBuffer);
+        // control steps of processing.
+        const readCtrl = {
+            // current byte index
+            ptr: 0
+        };
+        const gifData = {
+            header: {
+                type: '',
+                isGif: false,
+                version: '',
+                width: 0,
+                height: 0,
+                gctFlag: false,
+                cr: 0,
+                sortFlag: false,
+                gctSize: 0,
+                gctStartByte: 0,
+                gctEndByte: 0,
+                bgIndex: 0,
+                pixelAspect: 0,
+                gctList: []
+            },
+            frames: []
+        };
+        let s = window.performance.now();
+        while (readCtrl.ptr < buf.length) {
+            if (readCtrl.ptr === 0) {
+                // read header
+                const header = readHeader(buf, readCtrl);
+                if (!header.isGif) {
+                    return errorCallback(errMsgs.notGif, 'onDataError');
+                }
+                Object.assign(gifData.header, header);
+            }
+            else if (readCtrl.ptr === 6) {
+                // read logical screen descriptor
+                const LSD = readLSD(buf, readCtrl);
+                Object.assign(gifData.header, LSD);
+                // global color table list
+                const gctList = LSD.gctFlag ? (++readCtrl.ptr, readGCT(buf, LSD.gctSize, readCtrl)) : [];
+                gifData.header.gctList = gctList;
+            }
+            else if ( // extention flag is 0x21, application flag is 0xff
+            (readCtrl.ptr + 1 < buf.length) &&
+                buf[readCtrl.ptr] === 0x21 &&
+                buf[readCtrl.ptr + 1] === 0xff &&
+                !gifData.appExt // 0x21 0xff will matched times
+            ) {
+                const appExt = readAppExt(buf, readCtrl);
+                gifData.appExt = appExt;
+            }
+            else if ( // Graphic Control Extension
+            readCtrl.ptr + 1 < buf.length &&
+                buf[readCtrl.ptr] === 0x21 &&
+                buf[readCtrl.ptr + 1] === 0xf9) {
+                gifData.frames.push(readFrame(buf, readCtrl));
+            }
+            else if (buf[readCtrl.ptr] === 0x2c) { // Image Descriptor
+                let frame = readFrame(buf, readCtrl);
+                // Graphic Control Extension may not be followed by Image Descriptor, i.e. last frame may not contain real image data
+                const lastFrame = gifData.frames[gifData.frames.length - 1];
+                if (!lastFrame.endByte) {
+                    frame.startByte = lastFrame.startByte;
+                    frame.disposalMethod = lastFrame.disposalMethod;
+                    frame.userInputFlag = lastFrame.userInputFlag;
+                    frame.transColorFlag = lastFrame.transColorFlag;
+                    frame.delay = lastFrame.delay;
+                    frame.transColorIdx = lastFrame.transColorIdx;
+                    gifData.frames[gifData.frames.length - 1] = frame;
+                }
+                else {
+                    gifData.frames.push(frame);
+                }
+            }
+            else if ( // Plain Text Extension
+            readCtrl.ptr + 1 < buf.length &&
+                buf[readCtrl.ptr] === 0x21 &&
+                buf[readCtrl.ptr + 1] === 0x01) {
+                gifData.frames.push(readFrame(buf, readCtrl));
+            }
+            else if (buf[readCtrl.ptr] === 0x3b) { // file end
+                break;
+            }
+            // if (gifData.frames.length >= 2) break
+            readCtrl.ptr++;
         }
-        else if (buf[readCtrl.ptr] === 0x3b) { // file end
-            break;
-        }
-        // if (gifData.frames.length >= 2) break
-        readCtrl.ptr++;
-    }
-    console.log(gifData);
-    return gifData;
-}
+        console.log('parse: ', window.performance.now() - s);
+        s = window.performance.now();
+        const decompressedFramesData = yield Promise.all(gifData.frames.map((item) => {
+            return worker({
+                action: 'gifLzwDecode',
+                param: [item.codeSize, item.imageData],
+                transferable: [item.imageData.buffer]
+            });
+        }));
+        console.log('duration: ', window.performance.now() - s);
+        decompressedFramesData.map((data, idx) => {
+            gifData.frames[idx].imageData = data;
+        });
+        return gifData;
+    });
+});
 /**
  * read gif header info
  * the first 6 bytes of gif file indicates file type and gif
@@ -644,6 +585,7 @@ function readFrame(buf, readCtrl) {
         lctStartByte: 0,
         lctEndByte: 0,
         lctList: [],
+        codeSize: 0,
         imageData: new Uint8Array(),
         imageStartByte: 0,
         imageEndByte: 0
@@ -736,7 +678,9 @@ function readFrame(buf, readCtrl) {
         for (let i = blocks.length - 1; i >= 0; i--) {
             imageData.set(blocks[i], imageDataLength -= blocks[i].length);
         }
-        frameData.imageData = GifLZW.decode(codeSize, imageData);
+        // frameData.imageData = GifLZW.decode(codeSize, imageData)
+        frameData.codeSize = codeSize;
+        frameData.imageData = imageData;
     }
     // console.log(frameData)
     return frameData;
@@ -1354,27 +1298,29 @@ var filter = {
  * @returns
  */
 function encode(gifData) {
-    let data = {
-        buf: growGifBuffer(new Uint8Array(0)),
-        ptr: 0
-    };
-    // write header
-    writeHeader(data, gifData.header);
-    // write logical screen discriptor
-    writeLSD(data, gifData.header);
-    // write global color table
-    gifData.header.gctFlag && writeCT(data, gifData.header.gctList);
-    // write NETSCAPE application extension
-    gifData.appExt && writeAppExt(data, gifData.appExt);
-    // write frames
-    writeFrames(data, gifData.frames, gifData.header.gctSize);
-    // write end
-    if (data.ptr >= data.buf.length) {
-        data.buf = growGifBuffer(data.buf);
-    }
-    data.buf[data.ptr] = 0x3b;
-    data.ptr++;
-    return data.buf.slice(0, data.ptr);
+    return __awaiter(this, void 0, void 0, function* () {
+        let data = {
+            buf: growGifBuffer(new Uint8Array(0)),
+            ptr: 0
+        };
+        // write header
+        writeHeader(data, gifData.header);
+        // write logical screen discriptor
+        writeLSD(data, gifData.header);
+        // write global color table
+        gifData.header.gctFlag && writeCT(data, gifData.header.gctList);
+        // write NETSCAPE application extension
+        gifData.appExt && writeAppExt(data, gifData.appExt);
+        // write frames
+        yield writeFrames(data, gifData.frames, gifData.header.gctSize);
+        // write end
+        if (data.ptr >= data.buf.length) {
+            data.buf = growGifBuffer(data.buf);
+        }
+        data.buf[data.ptr] = 0x3b;
+        data.ptr++;
+        return data.buf.slice(0, data.ptr);
+    });
 }
 /**
  * write gif header info. just file type and gif version
@@ -1470,37 +1416,50 @@ function writeAppExt(data, appInfo) {
  * @param gctSize global color table size
  */
 function writeFrames(data, frames, gctSize) {
-    for (let i = 0, len = frames.length; i < len; i++) {
-        const frame = frames[i];
-        // write graphic control extension
-        writeGCE(data, frame);
-        // write image descriptor
-        writeID(data, frame);
-        // write local table flag
-        frame.lctFlag && writeCT(data, frame.lctList);
-        // write image data
-        const minCodeSize = frame.lctFlag ? getBitsByNum(frame.lctSize) : getBitsByNum(gctSize);
-        const compressedBuf = GifLZW.encode(minCodeSize, frame.imageData);
-        // console.log(i, compressedBuf)
-        const subBlockSize = compressedBuf.length + Math.ceil(compressedBuf.length / 255);
-        while (data.ptr + 1 + subBlockSize >= data.buf.length) {
-            data.buf = growGifBuffer(data.buf);
-        }
-        data.buf[data.ptr++] = minCodeSize;
-        let bolckSizeIdx = data.ptr;
-        for (let i = 0, len = compressedBuf.length; i < len; i++) {
-            if (bolckSizeIdx === data.ptr) {
+    return __awaiter(this, void 0, void 0, function* () {
+        // compress imageData in workers
+        const framesMinCodeSize = [];
+        const s = window.performance.now();
+        const compressedImageData = yield Promise.all(frames.map((frame, idx) => {
+            framesMinCodeSize[idx] = frame.lctFlag ? getBitsByNum(frame.lctSize) : getBitsByNum(gctSize);
+            return worker({
+                action: 'gifLzwEncode',
+                param: [framesMinCodeSize[idx], frame.imageData]
+                // there is no need of transferable in here, transferable buffer will cause detached buffer error when you call encode twice in a gifData
+            });
+        }));
+        console.log('encode frames buffer: ', window.performance.now() - s);
+        for (let i = 0, len = frames.length; i < len; i++) {
+            const frame = frames[i];
+            // write graphic control extension
+            writeGCE(data, frame);
+            // write image descriptor
+            writeID(data, frame);
+            // write local table flag
+            frame.lctFlag && writeCT(data, frame.lctList);
+            // write image data
+            const compressedBuf = compressedImageData[i];
+            // console.log(i, compressedBuf)
+            const subBlockSize = compressedBuf.length + Math.ceil(compressedBuf.length / 255);
+            while (data.ptr + 1 + subBlockSize >= data.buf.length) {
+                data.buf = growGifBuffer(data.buf);
+            }
+            data.buf[data.ptr++] = framesMinCodeSize[i];
+            let bolckSizeIdx = data.ptr;
+            for (let i = 0, len = compressedBuf.length; i < len; i++) {
+                if (bolckSizeIdx === data.ptr) {
+                    data.ptr++;
+                }
+                data.buf[data.ptr] = compressedBuf[i];
+                if (data.ptr - bolckSizeIdx === 255 || i + 1 === len) {
+                    data.buf[bolckSizeIdx] = data.ptr - bolckSizeIdx;
+                    bolckSizeIdx = data.ptr + 1;
+                }
                 data.ptr++;
             }
-            data.buf[data.ptr] = compressedBuf[i];
-            if (data.ptr - bolckSizeIdx === 255 || i + 1 === len) {
-                data.buf[bolckSizeIdx] = data.ptr - bolckSizeIdx;
-                bolckSizeIdx = data.ptr + 1;
-            }
-            data.ptr++;
+            data.buf[data.ptr++] = 0x0;
         }
-        data.buf[data.ptr++] = 0x0;
-    }
+    });
 }
 /**
  * write graphic control extension
@@ -1577,15 +1536,19 @@ const kit = {
      * decode gif (ArrayBuffer)
      */
     decode(buf, errorCallback) {
-        return decode(buf, (msg, ev) => {
-            return errorCallback(msg);
+        return __awaiter(this, void 0, void 0, function* () {
+            return decode(buf, (msg, ev) => {
+                return errorCallback(msg);
+            });
         });
     },
     /**
      * encode gif
      */
     encode(gifData) {
-        return encode(gifData);
+        return __awaiter(this, void 0, void 0, function* () {
+            return encode(gifData);
+        });
     },
     /**
      * get frame ImageData
@@ -1750,7 +1713,7 @@ class AMZGif {
             }
             // try parse gifBuffer
             if (this.gifData === null) {
-                const temp = decode(this._gifBuffer, this._errCall);
+                const temp = yield decode(this._gifBuffer, this._errCall);
                 if (!temp || !temp.header.isGif)
                     return;
                 this.gifData = temp;

@@ -1,11 +1,11 @@
-import { isFunc } from "./helpers";
-import { Config, GifData, GifFrameData } from "./types";
+import { isFunc } from './helpers'
+import { AnyFuncType, GifData, GifFrameData } from './types'
 import { defaultBgColor } from './config'
 
 /**
  * generate ImageData for canvas
  */
-export function generateFullCanvasImageData(gifData: GifData, frameIndex: number): ImageData {
+export function generateFullCanvasImageData (gifData: GifData, frameIndex: number): ImageData {
   const frameInfo = gifData.frames[frameIndex]
   // check cache
   if (frameInfo.canvasImageData instanceof ImageData) {
@@ -16,26 +16,28 @@ export function generateFullCanvasImageData(gifData: GifData, frameIndex: number
   // color table
   const colorTable = frameInfo.lctFlag ? frameInfo.lctList : gifData.header.gctList
   // background color
-  const bgColor = gifData.header.gctFlag ? [...gifData.header.gctList[gifData.header.bgIndex], 255] : [...defaultBgColor]
+  const bgColor = gifData.header.gctFlag
+    ? [...gifData.header.gctList[gifData.header.bgIndex], 255]
+    : [...defaultBgColor]
   // width and height
   const width = gifData.header.width
   const height = gifData.header.height
-  
+
   // avoid affect raw data
   const frameImageCopy = getGifRawImageDataCopy(frameInfo)
   // fill color
   const frameImageData = new Uint8ClampedArray(width * height * 4)
   for (let i = 0, len = width * height; i < len; i++) {
-    let x = i % width
-    let y = (i / width) >> 0
+    const x = i % width
+    const y = (i / width) >> 0
     // first primary color index
-    let pci = i << 2
+    const pci = i << 2
     // whether current pixel in current frame image
     if (
       x >= frameInfo.left &&
-      x < (frameInfo.left + frameInfo.width) &&
+      x < frameInfo.left + frameInfo.width &&
       y >= frameInfo.top &&
-      y < (frameInfo.top + frameInfo.height)
+      y < frameInfo.top + frameInfo.height
     ) {
       // frameImageCopy index
       const ficidx = x - frameInfo.left + (y - frameInfo.top) * frameInfo.width
@@ -78,7 +80,7 @@ export function generateFullCanvasImageData(gifData: GifData, frameIndex: number
  * generate ImageData
  * single frame, support transparent, without regard to disposal method
  */
-export function generateIndependentImageData(gifData: GifData, frameIndex: number): ImageData {
+export function generateIndependentImageData (gifData: GifData, frameIndex: number): ImageData {
   const frameInfo = gifData.frames[frameIndex]
   // check cache
   if (frameInfo.independentImageData instanceof ImageData) {
@@ -114,39 +116,39 @@ export function generateIndependentImageData(gifData: GifData, frameIndex: numbe
 /**
  * get image data copy correctly (consider interlace)
  */
-function getGifRawImageDataCopy(frameInfo: GifFrameData) {
+function getGifRawImageDataCopy (frameInfo: GifFrameData) {
   const frameImageCopy = new Uint8Array(frameInfo.imageData.length)
+  let idx = 0
+  function rowCopy (rowIdx: number) {
+    for (let i = 0; i < frameInfo.width; i++) {
+      frameImageCopy[idx] = frameInfo.imageData[rowIdx * frameInfo.width + i]
+      idx++
+    }
+  }
   // interlace
   if (frameInfo.interlace) {
     let rowIdx = 0
-    let idx = 0
-    function rowCopy() {
-      for (let i = 0; i < frameInfo.width; i++) {
-        frameImageCopy[idx] = frameInfo.imageData[rowIdx * frameInfo.width + i]
-        idx++
-      }
-    }
     // pass 1: row 0, row 8, row 16……
     while (rowIdx < frameInfo.height) {
-      rowCopy()
+      rowCopy(rowIdx)
       rowIdx += 8
     }
     // pass 2: row 4, row 12, row 20……
     rowIdx = 4
     while (rowIdx < frameInfo.height) {
-      rowCopy()
+      rowCopy(rowIdx)
       rowIdx += 8
     }
     // pass 3: row 2, row 6, row 10……
     rowIdx = 2
     while (rowIdx < frameInfo.height) {
-      rowCopy()
+      rowCopy(rowIdx)
       rowIdx += 4
     }
     // pass 4: row 1, row 3, row 5……
     rowIdx = 1
     while (rowIdx < frameInfo.height) {
-      rowCopy()
+      rowCopy(rowIdx)
       rowIdx += 2
     }
   } else {
@@ -158,7 +160,7 @@ function getGifRawImageDataCopy(frameInfo: GifFrameData) {
 /**
  * get correct lastFrameSnapshot
  */
-export function getLastFrameSnapshot(gifData: GifData, frameIndex: number): undefined | ImageData {
+export function getLastFrameSnapshot (gifData: GifData, frameIndex: number): undefined | ImageData {
   // first frame, dont need lastFrameSnapshot
   if (frameIndex <= 0) return undefined
   const lastFrame = gifData.frames[frameIndex - 1]
@@ -169,7 +171,9 @@ export function getLastFrameSnapshot(gifData: GifData, frameIndex: number): unde
   // set the area of image to background color
   if (lastFrame.disposalMethod === 2) {
     // background color
-    const bgColor = gifData.header.gctFlag ? [...gifData.header.gctList[gifData.header.bgIndex], 255] : [...defaultBgColor]
+    const bgColor = gifData.header.gctFlag
+      ? [...gifData.header.gctList[gifData.header.bgIndex], 255]
+      : [...defaultBgColor]
 
     let lastCanvasImageData = lastFrame.canvasImageData
     if (!lastCanvasImageData) {
@@ -205,17 +209,33 @@ export function getLastFrameSnapshot(gifData: GifData, frameIndex: number): unde
 /**
  * render frame image data to canvas
  */
-export function render(ctx: CanvasRenderingContext2D, offscreenCtx: CanvasRenderingContext2D, gifData: GifData, frameIndex: number, beforeDraw?: Function) {
+export function render (
+  ctx: CanvasRenderingContext2D,
+  offscreenCtx: CanvasRenderingContext2D,
+  gifData: GifData,
+  frameIndex: number,
+  beforeDraw?: AnyFuncType
+) {
   let currentFrameImage = generateFullCanvasImageData(gifData, frameIndex)
   // if beforeDraw is Function, call it
   if (isFunc(beforeDraw)) {
     let tempFrameImage = new ImageData(currentFrameImage.width, currentFrameImage.height)
     tempFrameImage.data.set(currentFrameImage.data)
-    tempFrameImage = (beforeDraw as Function)(tempFrameImage)
+    tempFrameImage = (beforeDraw as AnyFuncType)(tempFrameImage)
     currentFrameImage = tempFrameImage
   }
   offscreenCtx.putImageData(currentFrameImage, 0, 0)
   // drawImage can scale image, but doesn't support ImageData, so we use offscreen canvas
-  ctx.drawImage(offscreenCtx.canvas, 0, 0, currentFrameImage.width, currentFrameImage.height, 0, 0, ctx.canvas.width, ctx.canvas.height)
+  ctx.drawImage(
+    offscreenCtx.canvas,
+    0,
+    0,
+    currentFrameImage.width,
+    currentFrameImage.height,
+    0,
+    0,
+    ctx.canvas.width,
+    ctx.canvas.height
+  )
   return currentFrameImage
 }

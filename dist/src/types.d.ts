@@ -74,6 +74,7 @@ export interface GifFrameData {
     lctStartByte: number;
     lctEndByte: number;
     lctList: Array<Array<number>>;
+    codeSize: number;
     imageData: Uint8Array;
     imageStartByte: number;
     imageEndByte: number;
@@ -113,5 +114,30 @@ export interface ValueChangeType {
     key: string;
     oldValue: any;
     newValue: any;
+}
+/**
+ * string key object
+ */
+export interface StringKeyObjType {
+    [x: string]: any;
+}
+/**
+ * worker job type
+ */
+export interface WorkerJobType {
+    action: string;
+    param?: Array<any>;
+    transferable?: Transferable[];
+}
+/**
+ * worker job wrap type
+ */
+export interface WorkerJobWrapType {
+    _sign: number;
+    job: WorkerJobType;
+    p: {
+        resolve: Function;
+        reject: Function;
+    };
 }
 export {};

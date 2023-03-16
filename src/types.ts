@@ -2,6 +2,8 @@ type CallbackFunc = (message: string) => void
 
 export type httpGifRequest = (src: string) => Blob
 
+export type AnyFuncType = (...args: any) => any
+
 /**
  * @interface Config
  * @description
@@ -37,9 +39,14 @@ export interface Config {
   onEnd?: CallbackFunc
   // (can be Promise,) if result if false, will not stop
   onBeforePause: CallbackFunc
-  onPause?: CallbackFunc,
+  onPause?: CallbackFunc
   filter?: (imgData: ImageData) => ImageData
 }
+
+/**
+ * event func name type
+ */
+export type EventFuncNameType = 'onLoad' | 'onError' | 'onLoadError' | 'onDataError'
 
 /**
  * read ctrl type
@@ -72,8 +79,8 @@ export interface GifHeaderInfo {
  * gif frame data
  */
 export interface GifFrameData {
-  startByte: number,
-  endByte: number,
+  startByte: number
+  endByte: number
   width: number
   height: number
   left: number
@@ -90,6 +97,7 @@ export interface GifFrameData {
   lctStartByte: number
   lctEndByte: number
   lctList: Array<Array<number>>
+  codeSize: number
   imageData: Uint8Array
   imageStartByte: number
   imageEndByte: number
@@ -133,4 +141,32 @@ export interface ValueChangeType {
   key: string
   oldValue: any
   newValue: any
+}
+
+/**
+ * string key object
+ */
+export interface StringKeyObjType {
+  [x: string]: any
+}
+
+/**
+ * worker job type
+ */
+export interface WorkerJobType {
+  action: string
+  param?: Array<any>
+  transferable?: Transferable[]
+}
+
+/**
+ * worker job wrap type
+ */
+export interface WorkerJobWrapType {
+  _sign: number
+  job: WorkerJobType
+  p: {
+    resolve: (value: unknown) => void
+    reject: (value: unknown) => void
+  }
 }

@@ -1,14 +1,17 @@
-import decode from "./decoder"
+import decode from './decoder'
 import encode from './encoder'
 import { generateIndependentImageData, generateFullCanvasImageData } from './render'
-import { GifData } from "./types"
+import { GifData } from './types'
 
 const kit = {
   /**
    * decode gif (ArrayBuffer)
    */
-  decode(buf: ArrayBuffer, errorCallback: Function): GifData | undefined {
-    return decode(buf, (msg: string, ev: string) => {
+  async decode (
+    buf: ArrayBuffer,
+    errorCallback: (msg: string) => undefined
+  ): Promise<GifData | undefined> {
+    return decode(buf, (msg: string) => {
       return errorCallback(msg)
     })
   },
@@ -16,7 +19,7 @@ const kit = {
   /**
    * encode gif
    */
-  encode(gifData: GifData): Uint8Array {
+  async encode (gifData: GifData): Promise<Uint8Array> {
     return encode(gifData)
   },
 
@@ -30,7 +33,7 @@ const kit = {
    * get frames ImageData[]
    * this will take a long time
    */
-  getFramesImageData(gifData: GifData): ImageData[] {
+  getFramesImageData (gifData: GifData): ImageData[] {
     return gifData.frames.map((_, index) => {
       return generateIndependentImageData(gifData, index)
     })
@@ -46,11 +49,11 @@ const kit = {
    * get composite ImageData of all frames
    * this will take a long time
    */
-  getCompositeFramesImageData(gifData: GifData): ImageData[] {
+  getCompositeFramesImageData (gifData: GifData): ImageData[] {
     return gifData.frames.map((_, index) => {
       return generateFullCanvasImageData(gifData, index)
     })
-  }
+  },
 }
 
 export default kit

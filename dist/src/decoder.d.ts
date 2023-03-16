@@ -4,4 +4,5 @@ import { GifData } from "./types";
  * @param gifBuffer
  * @param errorCallback
  */
-export default function decode(gifBuffer: ArrayBuffer, errorCallback: Function): GifData | undefined;
+declare const _default: (gifBuffer: ArrayBuffer, errorCallback: Function) => Promise<GifData | undefined>;
+export default _default;

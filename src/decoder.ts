@@ -1,13 +1,16 @@
-import { ReadCtrlType, GifFrameData, GifData } from "./types";
-import { errMsgs, isFunc } from "./helpers";
-import { GifLZW } from "./lzw";
+import { EventFuncNameType, ReadCtrlType, GifFrameData, GifData } from './types'
+import { errMsgs, isFunc } from './helpers'
+import worker from './promiseWorker'
 
 /**
  * decode gif buffer
- * @param gifBuffer 
- * @param errorCallback 
+ * @param gifBuffer
+ * @param errorCallback
  */
-export default function decode(gifBuffer: ArrayBuffer, errorCallback: Function): GifData | undefined {
+export default (async function decode (
+  gifBuffer: ArrayBuffer,
+  errorCallback: (msg: string, type: EventFuncNameType) => undefined
+): Promise<GifData | undefined> {
   if (!(gifBuffer instanceof ArrayBuffer)) {
     if (isFunc(errorCallback)) {
       return errorCallback(errMsgs.gifDataTypeError, 'onDataError')
@@ -21,7 +24,7 @@ export default function decode(gifBuffer: ArrayBuffer, errorCallback: Function):
   // control steps of processing.
   const readCtrl = {
     // current byte index
-    ptr: 0
+    ptr: 0,
   }
   const gifData: GifData = {
     header: {
@@ -38,10 +41,11 @@ export default function decode(gifBuffer: ArrayBuffer, errorCallback: Function):
       gctEndByte: 0,
       bgIndex: 0,
       pixelAspect: 0,
-      gctList: []
+      gctList: [],
     },
-    frames: []
+    frames: [],
   }
+  let s = window.performance.now()
   while (readCtrl.ptr < buf.length) {
     if (readCtrl.ptr === 0) {
       // read header
@@ -57,22 +61,25 @@ export default function decode(gifBuffer: ArrayBuffer, errorCallback: Function):
       // global color table list
       const gctList = LSD.gctFlag ? (++readCtrl.ptr, readGCT(buf, LSD.gctSize, readCtrl)) : []
       gifData.header.gctList = gctList
-    } else if ( // extention flag is 0x21, application flag is 0xff
-      (readCtrl.ptr + 1 < buf.length) &&
+    } else if (
+      // extention flag is 0x21, application flag is 0xff
+      readCtrl.ptr + 1 < buf.length &&
       buf[readCtrl.ptr] === 0x21 &&
       buf[readCtrl.ptr + 1] === 0xff &&
       !gifData.appExt // 0x21 0xff will matched times
     ) {
       const appExt = readAppExt(buf, readCtrl)
       gifData.appExt = appExt
-    } else if ( // Graphic Control Extension
+    } else if (
+      // Graphic Control Extension
       readCtrl.ptr + 1 < buf.length &&
       buf[readCtrl.ptr] === 0x21 &&
       buf[readCtrl.ptr + 1] === 0xf9
     ) {
       gifData.frames.push(readFrame(buf, readCtrl))
-    } else if (buf[readCtrl.ptr] === 0x2c) { // Image Descriptor
-      let frame = readFrame(buf, readCtrl)
+    } else if (buf[readCtrl.ptr] === 0x2c) {
+      // Image Descriptor
+      const frame = readFrame(buf, readCtrl)
       // Graphic Control Extension may not be followed by Image Descriptor, i.e. last frame may not contain real image data
       const lastFrame = gifData.frames[gifData.frames.length - 1]
       if (!lastFrame.endByte) {
@@ -86,33 +93,49 @@ export default function decode(gifBuffer: ArrayBuffer, errorCallback: Function):
       } else {
         gifData.frames.push(frame)
       }
-    } else if ( // Plain Text Extension
+    } else if (
+      // Plain Text Extension
       readCtrl.ptr + 1 < buf.length &&
       buf[readCtrl.ptr] === 0x21 &&
       buf[readCtrl.ptr + 1] === 0x01
     ) {
       gifData.frames.push(readFrame(buf, readCtrl))
-    } else if (buf[readCtrl.ptr] === 0x3b) { // file end
+    } else if (buf[readCtrl.ptr] === 0x3b) {
+      // file end
       break
     }
     // if (gifData.frames.length >= 2) break
     readCtrl.ptr++
   }
-  console.log(gifData)
+  console.log('parse: ', window.performance.now() - s)
+  s = window.performance.now()
+  const decompressedFramesData = await Promise.all(
+    gifData.frames.map(item => {
+      return worker({
+        action: 'gifLzwDecode',
+        param: [item.codeSize, item.imageData],
+        transferable: [item.imageData.buffer],
+      })
+    })
+  )
+  console.log('duration: ', window.performance.now() - s)
+  decompressedFramesData.map((data, idx) => {
+    gifData.frames[idx].imageData = data as Uint8Array
+  })
   return gifData
-}
+})
 
 /**
  * read gif header info
  * the first 6 bytes of gif file indicates file type and gif
  * version. e.g. GIF89a
- * @param buf 
+ * @param buf
  */
-function readHeader(buf: Uint8Array, readCtrl: ReadCtrlType) {
+function readHeader (buf: Uint8Array, readCtrl: ReadCtrlType) {
   const info = {
     type: '',
     isGif: false,
-    version: ''
+    version: '',
   }
   // file type
   for (let i = 0; i < 3; i++) {
@@ -133,7 +156,7 @@ function readHeader(buf: Uint8Array, readCtrl: ReadCtrlType) {
  * readLSD
  * 7 ~ 13 bytes is logical screen descriptor which contains width, height and others
  */
-function readLSD(buf: Uint8Array, readCtrl: ReadCtrlType) {
+function readLSD (buf: Uint8Array, readCtrl: ReadCtrlType) {
   const info = {
     width: 0,
     height: 0,
@@ -144,7 +167,7 @@ function readLSD(buf: Uint8Array, readCtrl: ReadCtrlType) {
     gctStartByte: 0,
     gctEndByte: 0,
     bgIndex: 0,
-    pixelAspect: 0
+    pixelAspect: 0,
   }
   // image width and height--little endian
   info.width = buf[6] + (buf[7] << 8)
@@ -178,7 +201,7 @@ function readLSD(buf: Uint8Array, readCtrl: ReadCtrlType) {
 /**
  * readGCT
  */
-function readGCT(buf: Uint8Array, gctSize: number, readCtrl: ReadCtrlType) {
+function readGCT (buf: Uint8Array, gctSize: number, readCtrl: ReadCtrlType) {
   const bytes = gctSize * 3
   const start = 13
   const end = bytes + start
@@ -193,19 +216,19 @@ function readGCT(buf: Uint8Array, gctSize: number, readCtrl: ReadCtrlType) {
 /**
  * read application extention
  */
-function readAppExt(buf: Uint8Array, readCtrl: ReadCtrlType) {
+function readAppExt (buf: Uint8Array, readCtrl: ReadCtrlType) {
   const info = {
     appName: '',
     verification: '',
     blockIdx: 1,
     repetitionTimes: 0,
     startByte: 0,
-    endByte: 0
+    endByte: 0,
   }
   info.startByte = readCtrl.ptr
   let idx = info.startByte
   // to NETSCAPE, app name(8 bytes) and verification bytes(3 bytes)
-  const blockSize = buf[idx += 2]
+  const blockSize = buf[(idx += 2)]
   idx++
   for (let i = 0; i < blockSize - 3; i++) {
     info.appName += String.fromCharCode(buf[idx + i])
@@ -228,8 +251,8 @@ function readAppExt(buf: Uint8Array, readCtrl: ReadCtrlType) {
 /**
  * read frame
  */
-function readFrame(buf: Uint8Array, readCtrl: ReadCtrlType) {
-  const frameData:GifFrameData = {
+function readFrame (buf: Uint8Array, readCtrl: ReadCtrlType) {
+  const frameData: GifFrameData = {
     startByte: readCtrl.ptr,
     endByte: 0,
     width: 0,
@@ -248,9 +271,10 @@ function readFrame(buf: Uint8Array, readCtrl: ReadCtrlType) {
     lctStartByte: 0,
     lctEndByte: 0,
     lctList: [],
+    codeSize: 0,
     imageData: new Uint8Array(),
     imageStartByte: 0,
-    imageEndByte: 0
+    imageEndByte: 0,
   }
   // Graphic Control Extension
   if (buf[readCtrl.ptr] === 0x21 && buf[readCtrl.ptr + 1] === 0xf9) {
@@ -325,23 +349,25 @@ function readFrame(buf: Uint8Array, readCtrl: ReadCtrlType) {
     readCtrl.ptr++
     // Table-Based Image Data
     frameData.imageStartByte = readCtrl.ptr
-    let codeSize = buf[readCtrl.ptr++]
+    const codeSize = buf[readCtrl.ptr++]
     const blocks = []
     let imageDataLength = 0
-    while(buf[readCtrl.ptr] !== 0 && buf[readCtrl.ptr] !== undefined) {
-      let subBlockSize = buf[readCtrl.ptr++]
-      let subBlock = buf.slice(readCtrl.ptr, readCtrl.ptr + subBlockSize)
+    while (buf[readCtrl.ptr] !== 0 && buf[readCtrl.ptr] !== undefined) {
+      const subBlockSize = buf[readCtrl.ptr++]
+      const subBlock = buf.slice(readCtrl.ptr, readCtrl.ptr + subBlockSize)
       imageDataLength += subBlock.length
       blocks.push(subBlock)
       readCtrl.ptr += subBlockSize
     }
     frameData.imageEndByte = readCtrl.ptr
     frameData.endByte = readCtrl.ptr // contain end flag
-    let imageData = new Uint8Array(imageDataLength)
+    const imageData = new Uint8Array(imageDataLength)
     for (let i = blocks.length - 1; i >= 0; i--) {
-      imageData.set(blocks[i], imageDataLength -= blocks[i].length)
+      imageData.set(blocks[i], (imageDataLength -= blocks[i].length))
     }
-    frameData.imageData = GifLZW.decode(codeSize, imageData)
+    // frameData.imageData = GifLZW.decode(codeSize, imageData)
+    frameData.codeSize = codeSize
+    frameData.imageData = imageData
   }
   // console.log(frameData)
   return frameData

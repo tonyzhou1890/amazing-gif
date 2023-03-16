@@ -1,15 +1,15 @@
-import { errMsgs, isFunc } from "./helpers"
-import { Config, GifData, httpGifRequest } from './types'
+import { errMsgs, isFunc } from './helpers'
+import { AnyFuncType, Config, EventFuncNameType, GifData, httpGifRequest } from './types'
 import { defaultConfig, speedList } from './config'
-import decode from "./decoder"
-import rAF from "./rAF"
-import { render } from "./render"
+import decode from './decoder'
+import rAF from './rAF'
+import { render } from './render'
 import initSkin from './skin'
 import filter from './filter'
 import gifKit from './gifKit'
 
 class AMZGif {
-  constructor(config: Config) {
+  constructor (config: Config) {
     this._config = { ...defaultConfig, ...config }
     if (!speedList.includes(this._config.speed)) {
       this._config.speed = 1
@@ -46,7 +46,7 @@ class AMZGif {
 
   _nextUpdateTime = performance.now()
 
-  _rAFCallbackQueue: Array<Function> = []
+  _rAFCallbackQueue: Array<AnyFuncType> = []
 
   /**
    * loading gif
@@ -67,7 +67,7 @@ class AMZGif {
   /**
    * @member init
    */
-  _init() {
+  _init () {
     // init element
     // check img element
     if (!this._config.el) {
@@ -108,13 +108,15 @@ class AMZGif {
   /**
    * set width and height，and create canvas
    */
-  _initCanvas() {
+  _initCanvas () {
     const img = this._imgEl as HTMLImageElement
     // get width and height
     const rect = img.getBoundingClientRect()
     console.log(rect)
-    this._config.width = typeof this._config.width === 'number' ? this._config.width : rect?.width ?? 0
-    this._config.height = typeof this._config.height === 'number' ? this._config.height : rect?.height ?? 0
+    this._config.width =
+      typeof this._config.width === 'number' ? this._config.width : rect?.width ?? 0
+    this._config.height =
+      typeof this._config.height === 'number' ? this._config.height : rect?.height ?? 0
     // create canvas
     this._canvas = document.createElement('canvas')
     this._canvas.style.cursor = 'pointer'
@@ -125,10 +127,20 @@ class AMZGif {
     this._canvas.style.height = this._config.height + 'px'
     this._ctx = this._canvas.getContext('2d') as CanvasRenderingContext2D
     this._ctx.globalCompositeOperation = 'copy'
-    this._ctx?.drawImage(img, 0, 0, rect?.width ?? this._config.width, rect?.height ?? this._config.height, 0, 0, this._config.width ?? rect?.width, this._config.height ?? rect?.height)
+    this._ctx?.drawImage(
+      img,
+      0,
+      0,
+      rect?.width ?? this._config.width,
+      rect?.height ?? this._config.height,
+      0,
+      0,
+      this._config.width ?? rect?.width,
+      this._config.height ?? rect?.height
+    )
   }
 
-  _initContainer() {
+  _initContainer () {
     const img = this._imgEl as HTMLImageElement
     // create container
     const container = document.createElement('div')
@@ -150,7 +162,7 @@ class AMZGif {
    * @member play
    * play gif
    */
-  async play() {
+  async play () {
     // check gifBuffer, if it is null, load gif first
     if (this._gifBuffer === null) {
       if (!this._config.src && typeof this._config.httpRequest !== 'function') {
@@ -163,7 +175,7 @@ class AMZGif {
     }
     // try parse gifBuffer
     if (this.gifData === null) {
-      const temp = decode(this._gifBuffer, this._errCall)
+      const temp = await decode(this._gifBuffer, this._errCall)
       if (!temp || !temp.header.isGif) return
       this.gifData = temp
       this._offscreenCanvas = document.createElement('canvas')
@@ -172,7 +184,7 @@ class AMZGif {
       this._offscreenCtx = this._offscreenCanvas.getContext('2d')
     }
     if (isFunc(this._config.onBeforePlay)) {
-      const res = await (this._config.onBeforePlay as Function)()
+      const res = await (this._config.onBeforePlay as AnyFuncType)()
       if (!res) return
     }
     this.isPlaying = true
@@ -181,42 +193,43 @@ class AMZGif {
       this._currFrame = -1
     }
     if (isFunc(this._config.onPlay)) {
-      (this._config.onPlay as Function)()
+      (this._config.onPlay as AnyFuncType)()
     }
   }
 
   /**
    * pause
    */
-  async pause() {
+  async pause () {
     if (isFunc(this._config.onBeforePause)) {
-      const res = await (this._config.onBeforePause as Function)()
+      const res = await (this._config.onBeforePause as AnyFuncType)()
       if (!res) return
     }
     this.isPlaying = false
     if (isFunc(this._config.onPause)) {
-      (this._config.onPause as Function)()
+      (this._config.onPause as AnyFuncType)()
     }
   }
 
   /**
    * play next frame munually
-   * @returns 
+   * @returns
    */
-   nextFrame() {
+  nextFrame () {
     if (!this.gifData || !this._ctx || !this._offscreenCtx) {
       return this._errCall(errMsgs.notReady, 'onError')
     }
     if (this.isRendering) return errMsgs.isRendering
     this._currFrame = (this._currFrame + 1) % this.gifData.frames.length
     this._renderFrame()
-    this._nextUpdateTime = performance.now() + this.gifData.frames[this._currFrame].delay / this._config.speed
+    this._nextUpdateTime =
+      performance.now() + this.gifData.frames[this._currFrame].delay / this._config.speed
   }
 
   /**
    * play prev frame manually
    */
-  prevFrame() {
+  prevFrame () {
     if (!this.gifData || !this._ctx || !this._offscreenCtx) {
       return this._errCall(errMsgs.notReady, 'onError')
     }
@@ -226,13 +239,14 @@ class AMZGif {
       this._currFrame = this.gifData.frames.length - 1
     }
     this._renderFrame()
-    this._nextUpdateTime = performance.now() + this.gifData.frames[this._currFrame].delay / this._config.speed
+    this._nextUpdateTime =
+      performance.now() + this.gifData.frames[this._currFrame].delay / this._config.speed
   }
 
   /**
    * jump
    */
-  jump(frameIndex: number) {
+  jump (frameIndex: number) {
     if (!this.gifData) {
       return this._errCall(errMsgs.notReady, 'onError')
     }
@@ -251,7 +265,7 @@ class AMZGif {
   /**
    * set speed
    */
-  setSpeed(speed: number) {
+  setSpeed (speed: number) {
     if (this.speedList.includes(speed)) {
       this._config.speed = speed
       return true
@@ -260,9 +274,9 @@ class AMZGif {
   }
 
   /**
-   * togglePlay by 
+   * togglePlay by
    */
-  _togglePlay() {
+  _togglePlay () {
     if (this._config.interactive === false) return
     if (this.isPlaying) {
       this.pause()
@@ -274,8 +288,16 @@ class AMZGif {
   /**
    * update
    */
-  _update(time: number) {
-    if (!this.isPlaying || this.isRendering || !this.gifData || !this._ctx || !this._offscreenCtx || document.hidden) return
+  _update (time: number) {
+    if (
+      !this.isPlaying ||
+      this.isRendering ||
+      !this.gifData ||
+      !this._ctx ||
+      !this._offscreenCtx ||
+      document.hidden
+    )
+      return
 
     // If the time has not yet arrived, no action
     if (this._nextUpdateTime > time) return
@@ -283,21 +305,24 @@ class AMZGif {
     if (this._checkEnd()) {
       this.isPlaying = false
       if (isFunc(this._config.onEnd)) {
-        (this._config.onEnd as Function)()
+        (this._config.onEnd as AnyFuncType)()
       }
       return
     }
     this._renderFrame()
-    
+
     // set nextUpdateTime
-    while(this._nextUpdateTime <= time) {
-      this._nextUpdateTime += Math.max(this.gifData.frames[this._currFrame].delay / this._config.speed, 1)
+    while (this._nextUpdateTime <= time) {
+      this._nextUpdateTime += Math.max(
+        this.gifData.frames[this._currFrame].delay / this._config.speed,
+        1
+      )
       if (this._nextUpdateTime <= time) {
         this._currFrame++
         if (this._checkEnd()) {
           this.isPlaying = false
           if (isFunc(this._config.onEnd)) {
-            (this._config.onEnd as Function)()
+            (this._config.onEnd as AnyFuncType)()
           }
           // render the last frame
           this._currFrame = this.gifData.frames.length - 1
@@ -307,7 +332,7 @@ class AMZGif {
     }
   }
 
-  _renderFrame() {
+  _renderFrame () {
     const gifData = this.gifData as GifData
     const ctx = this._ctx as CanvasRenderingContext2D
     const offscreenCtx = this._offscreenCtx as CanvasRenderingContext2D
@@ -316,15 +341,15 @@ class AMZGif {
     this.isRendering = true
     render(ctx, offscreenCtx, gifData, this._currFrame, (imgData: ImageData) => {
       if (isFunc(this._config.filter)) {
-        return (this._config.filter as Function)(imgData)
+        return (this._config.filter as AnyFuncType)(imgData)
       }
       return imgData
     })
     this.isRendering = false
   }
 
-  _checkEnd() {
-    if (this._currFrame > ((this.gifData as GifData).frames.length - 1)) {
+  _checkEnd () {
+    if (this._currFrame > (this.gifData as GifData).frames.length - 1) {
       if (this._config.loop !== false) {
         this._currFrame = 0
         return false
@@ -338,7 +363,7 @@ class AMZGif {
   /**
    * get gif data
    */
-  async _getGif() {
+  async _getGif () {
     this.isLoading = true
     if (isFunc(this._config.httpRequest)) {
       try {
@@ -352,9 +377,9 @@ class AMZGif {
         const res = await fetch(this._config.src as string)
         this._gifBuffer = await res.arrayBuffer()
         if (isFunc(this._config.onLoad)) {
-          (this._config.onLoad as Function)()
+          (this._config.onLoad as AnyFuncType)()
         }
-      } catch(e) {
+      } catch (e) {
         this._errCall((e as any)?.message, 'onLoadError')
       }
     }
@@ -365,7 +390,7 @@ class AMZGif {
    * @ignore
    * handleError
    */
-  _errCall(msg: string, funcName: 'onLoad' | 'onError' | 'onLoadError' | 'onDataError') {
+  _errCall (msg: string, funcName: EventFuncNameType): undefined {
     if (isFunc(this._config[funcName])) {
       this._config[funcName]?.(msg)
     } else if (isFunc(this._config.onError)) {
@@ -373,6 +398,7 @@ class AMZGif {
     } else {
       throw new Error(msg)
     }
+    return undefined
   }
 }
 
