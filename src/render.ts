@@ -1,4 +1,4 @@
-import { isFunc } from './helpers'
+import { isFunc } from './utils/helpers'
 import { AnyFuncType, GifData, GifFrameData } from './types'
 import { defaultBgColor } from './config'
 
@@ -78,13 +78,13 @@ export function generateFullCanvasImageData (gifData: GifData, frameIndex: numbe
 
 /**
  * generate ImageData
- * single frame, support transparent, without regard to disposal method
+ * single frame, support transparent
  */
-export function generateIndependentImageData (gifData: GifData, frameIndex: number): ImageData {
+export function generateRawImageData (gifData: GifData, frameIndex: number): ImageData {
   const frameInfo = gifData.frames[frameIndex]
   // check cache
-  if (frameInfo.independentImageData instanceof ImageData) {
-    return frameInfo.independentImageData
+  if (frameInfo.rawImageData instanceof ImageData) {
+    return frameInfo.rawImageData
   }
   // color table
   const colorTable = frameInfo.lctFlag ? frameInfo.lctList : gifData.header.gctList
@@ -106,11 +106,11 @@ export function generateIndependentImageData (gifData: GifData, frameIndex: numb
       frameImageData[idx + 3] = 255
     }
   }
-  const independentImageData = new ImageData(frameInfo.width, frameInfo.height)
-  independentImageData.data.set(frameImageData)
+  const rawImageData = new ImageData(frameInfo.width, frameInfo.height)
+  rawImageData.data.set(frameImageData)
   // cache
-  frameInfo.independentImageData = independentImageData
-  return independentImageData
+  frameInfo.rawImageData = rawImageData
+  return rawImageData
 }
 
 /**

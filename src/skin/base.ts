@@ -1,5 +1,5 @@
 import AMZGif from '..'
-import { isFunc } from '../helpers'
+import { isFunc } from '../utils/helpers'
 import { AnyFuncType, ValueChangeType } from '../types'
 
 /**

@@ -1,42 +1,42 @@
 // https://www.cnblogs.com/jiang08/articles/3171319.html
-import { getBits, setBits } from './helpers'
+import { getBits, setBits } from './utils/helpers'
 
 export const GifLZW = {
   /**
    * decode gif buffer
-   * @param codeSize 
-   * @param buf 
-   * @returns 
+   * @param codeSize
+   * @param buf
+   * @returns
    */
   decode: (codeSize: number, buf: Uint8Array): Uint8Array => {
-    function genTable() {
-      return new Array((2 ** codeSize) + 2).fill(0).map((_, index) => String.fromCharCode(index))
+    function genTable () {
+      return new Array(2 ** codeSize + 2).fill(0).map((_, index) => String.fromCharCode(index))
     }
     let table = genTable()
     const clearCode = 2 ** codeSize
-    const endCode = 2 ** codeSize + 1 
+    const endCode = 2 ** codeSize + 1
     let bitLength = codeSize + 1
     let stream = ''
     let decodeStart = true
-    let byteLen = buf.length
+    const byteLen = buf.length
     let byteIdx = 0
     let bitIdx = 0
     let requiredBits = bitLength
     let code = 0
     let k = ''
     let oldCode = 0
-    while(byteIdx < byteLen) {
+    while (byteIdx < byteLen) {
       requiredBits = bitLength
       code = 0
       // read code
-      while(requiredBits !== 0) {
+      while (requiredBits !== 0) {
         if (8 - bitIdx >= requiredBits) {
           code += getBits(buf[byteIdx], bitIdx, requiredBits) << (bitLength - requiredBits)
           bitIdx += requiredBits
           requiredBits = 0
         } else {
           code += getBits(buf[byteIdx], bitIdx, 8 - bitIdx) << (bitLength - requiredBits)
-          requiredBits -= (8 - bitIdx)
+          requiredBits -= 8 - bitIdx
           bitIdx = 8
         }
         // overflow
@@ -46,7 +46,7 @@ export const GifLZW = {
           if (byteIdx >= byteLen) break
         }
       }
-      
+
       if (code === endCode) break
       // code is clear code, reset table and others
       if (code === clearCode) {
@@ -80,28 +80,28 @@ export const GifLZW = {
         oldCode = code
       }
       // check cap of table
-      if (table.length >= (2 ** bitLength)) {
+      if (table.length >= 2 ** bitLength) {
         if (bitLength < 12) {
           bitLength++
         }
       }
     }
-    let res = new Uint8Array(stream.length)
+    const res = new Uint8Array(stream.length)
     for (let i = 0; i < stream.length; i++) {
       res[i] = stream.charCodeAt(i)
     }
-    
+
     return res
   },
 
   /**
    * encode gif color indices buffer
-   * @param codeSize 
-   * @param buf 
+   * @param codeSize
+   * @param buf
    */
   encode: (codeSize: number, buf: Uint8Array): Uint8Array => {
     // generate original code table
-    function genTable() {
+    function genTable () {
       const t = new Map()
       new Array(2 ** codeSize).fill(0).map((_, index) => {
         t.set(String.fromCharCode(index), index)
@@ -110,7 +110,7 @@ export const GifLZW = {
     }
 
     // write to buf
-    function write(code: number) {      
+    function write (code: number) {
       let requiredBits = bitLength
       // if stream may not enough, expand stream
       if (byteIdx + 2 >= stream.length) {
@@ -145,7 +145,7 @@ export const GifLZW = {
     // this will affect the size of the compressed buf
     // 4093 is more efficent in the example pic 'cat1.gif'
     // let maxTableLength = 2 ** 12
-    let maxTableLength = 4093
+    const maxTableLength = 4093
     let stream = new Uint8Array(256)
     let byteIdx = 0
     let bitIdx = 0
@@ -183,7 +183,7 @@ export const GifLZW = {
     if (p) {
       write(table.get(p))
     }
-    
+
     write(endCode)
 
     let final = null
@@ -194,5 +194,5 @@ export const GifLZW = {
     }
 
     return final
-  }
+  },
 }

@@ -98,11 +98,12 @@ export interface GifFrameData {
   lctEndByte: number
   lctList: Array<Array<number>>
   codeSize: number
+  // pixel indices
   imageData: Uint8Array
   imageStartByte: number
   imageEndByte: number
   canvasImageData?: ImageData
-  independentImageData?: ImageData
+  rawImageData?: ImageData
 }
 
 /**
@@ -169,4 +170,66 @@ export interface WorkerJobWrapType {
     resolve: (value: unknown) => void
     reject: (value: unknown) => void
   }
+}
+
+/**
+ * to build frame data type
+ */
+export interface ToBuildFrameDataType {
+  // what you see in this frame
+  imageData: ImageData
+  // xx ms, must be multiple of 10, default 10
+  delay?: number
+  // disposal method--Indicates the way in which the graphic is to be treated after being displayed.
+  // 1 -   Do not dispose. The graphic is to be left in place.
+  // 2 -   Restore to background color. The area used by the graphic must be restored to the background color.
+  // 3 -   Restore to previous. The decoder is required to restore the area overwritten by the graphic with what was there prior to rendering the graphic.
+  // default 1
+  disposalMethod?: number
+  // local color table, default false
+  setLocalColorTable?: boolean
+}
+
+/**
+ * quantized frame data
+ */
+export interface QuantizedFrameType {
+  imageData: ImageData
+  indices: Uint8Array
+}
+
+/**
+ * build data type
+ */
+export interface ToBuildDataType {
+  // background color, rgb(128, 128, 128) or xffffff
+  backgroundColor?: string
+  // repetition, 0 represents infinite
+  repetition: number
+  // frames
+  frames: Array<ToBuildFrameDataType>
+}
+
+/**
+ * point
+ * [col, row], just like [x, y]
+ */
+export type Point = { x: number; y: number }
+
+/**
+ * rgba map
+ */
+export interface RGBAMAPType {
+  r: number
+  g: number
+  b: number
+  a: number
+}
+
+/**
+ * color table and frames
+ */
+export interface ColorTableAndFramesType {
+  colorTable: Array<Array<number>>
+  frames: Array<QuantizedFrameType>
 }

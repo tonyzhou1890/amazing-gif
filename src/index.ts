@@ -1,4 +1,4 @@
-import { errMsgs, isFunc } from './helpers'
+import { errMsgs, isFunc } from './utils/helpers'
 import { AnyFuncType, Config, EventFuncNameType, GifData, httpGifRequest } from './types'
 import { defaultConfig, speedList } from './config'
 import decode from './decoder'

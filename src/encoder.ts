@@ -1,5 +1,5 @@
 import { GifFrameData, GifData, GifEncodeData, GifHeaderInfo, AppExt } from './types'
-import { bufferGrow, setBits, getBitsByNum } from './helpers'
+import { bufferGrow, setBits, getBitsByNum } from './utils/helpers'
 import worker from './promiseWorker'
 
 /**

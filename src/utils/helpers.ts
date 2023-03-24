@@ -6,19 +6,21 @@
  * @name noop
  * @description empty function
  */
-export function noop() {}
+export function noop () {
+  /* noop */
+}
 
 /**
  * @name isFunc
  */
-export function isFunc(f: any) {
+export function isFunc (f: any) {
   return typeof f === 'function'
 }
 
 /**
  * isOdd
  */
-export function isOdd(a: number) {
+export function isOdd (a: number) {
   return !!(a % 2)
 }
 
@@ -35,19 +37,27 @@ export const errMsgs = {
   isRendering: 'isRendering',
   skinError: '皮肤出错',
   skinContainerIsSmall: '空间不足以显示皮肤',
-  errData: '数据格式错误'
+  errData: '数据格式错误',
 }
 
 /**
  * @name fillBoxPixels
  * fill box pixels
  */
-export function fillBoxPixels(imgData: ImageData, x: number, y: number, box: Uint8ClampedArray, boxWidth: number, boxHeight: number, pixelChannel: number): Uint8ClampedArray {
+export function fillBoxPixels (
+  imgData: ImageData,
+  x: number,
+  y: number,
+  box: Uint8ClampedArray,
+  boxWidth: number,
+  boxHeight: number,
+  pixelChannel: number
+): Uint8ClampedArray {
   let xOver = false
   let yOver = false
   let xDis = 0
   let yDis = 0
-  let boxCenter = [(boxWidth / 2) >> 0, (boxHeight / 2) >> 0]
+  const boxCenter = [(boxWidth / 2) >> 0, (boxHeight / 2) >> 0]
   let pixelStartIdx = 0
   for (let i = 0; i < boxWidth; i++) {
     for (let j = 0; j < boxHeight; j++) {
@@ -118,10 +128,10 @@ export function fillBoxPixels(imgData: ImageData, x: number, y: number, box: Uin
 
 /**
  * get bit depth of a num
- * @param num 
- * @returns 
+ * @param num
+ * @returns
  */
-export function getBitsByNum(num: number): number {
+export function getBitsByNum (num: number): number {
   let exp = 1
   while (num > 2 ** exp) {
     exp++
@@ -135,7 +145,7 @@ export function getBitsByNum(num: number): number {
  * @param bitIdx bit index(from right to left)
  * @param length required bits length
  */
-export function getBits(num: number, bitIdx: number, length: number): number {
+export function getBits (num: number, bitIdx: number, length: number): number {
   return (num >> bitIdx) & ((1 << length) - 1)
 }
 
@@ -144,20 +154,25 @@ export function getBits(num: number, bitIdx: number, length: number): number {
  * @param targetNum 1 byte
  * @param bitIdx bit index (from right to left)
  * @param length required bits length
- * @param sourceNum 
- * @returns 
+ * @param sourceNum
+ * @returns
  */
-export function setBits(targetNum: number, bitIdx: number, length: number, sourceNum: number): number {
+export function setBits (
+  targetNum: number,
+  bitIdx: number,
+  length: number,
+  sourceNum: number
+): number {
   return ((((1 << length) - 1) & sourceNum) << bitIdx) | targetNum
 }
 
 /**
  * increase buffer capacity
- * @param buf 
- * @param num 
- * @returns 
+ * @param buf
+ * @param num
+ * @returns
  */
-export function bufferGrow(buf: ArrayBuffer, num?: number): ArrayBuffer | undefined {
+export function bufferGrow (buf: ArrayBuffer, num?: number): ArrayBuffer | undefined {
   if (!num) {
     num = 256
   }

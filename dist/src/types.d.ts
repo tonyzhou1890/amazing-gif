@@ -1,5 +1,6 @@
 declare type CallbackFunc = (message: string) => void;
 export declare type httpGifRequest = (src: string) => Blob;
+export declare type AnyFuncType = (...args: any) => any;
 /**
  * @interface Config
  * @description
@@ -27,6 +28,10 @@ export interface Config {
     onPause?: CallbackFunc;
     filter?: (imgData: ImageData) => ImageData;
 }
+/**
+ * event func name type
+ */
+export declare type EventFuncNameType = 'onLoad' | 'onError' | 'onLoadError' | 'onDataError';
 /**
  * read ctrl type
  */
@@ -79,7 +84,7 @@ export interface GifFrameData {
     imageStartByte: number;
     imageEndByte: number;
     canvasImageData?: ImageData;
-    independentImageData?: ImageData;
+    rawImageData?: ImageData;
 }
 /**
  * application extension data type
@@ -136,8 +141,56 @@ export interface WorkerJobWrapType {
     _sign: number;
     job: WorkerJobType;
     p: {
-        resolve: Function;
-        reject: Function;
+        resolve: (value: unknown) => void;
+        reject: (value: unknown) => void;
     };
+}
+/**
+ * to build frame data type
+ */
+export interface ToBuildFrameDataType {
+    imageData: ImageData;
+    delay?: number;
+    disposalMethod?: number;
+    setLocalColorTable?: boolean;
+}
+/**
+ * quantized frame data
+ */
+export interface QuantizedFrameType {
+    imageData: ImageData;
+    indices: Uint8Array;
+}
+/**
+ * build data type
+ */
+export interface ToBuildDataType {
+    backgroundColor?: string;
+    repetition: number;
+    frames: Array<ToBuildFrameDataType>;
+}
+/**
+ * point
+ * [col, row], just like [x, y]
+ */
+export declare type Point = {
+    x: number;
+    y: number;
+};
+/**
+ * rgba map
+ */
+export interface RGBAMAPType {
+    r: number;
+    g: number;
+    b: number;
+    a: number;
+}
+/**
+ * color table and frames
+ */
+export interface ColorTableAndFramesType {
+    colorTable: Array<Array<number>>;
+    frames: Array<QuantizedFrameType>;
 }
 export {};

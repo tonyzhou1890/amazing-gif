@@ -1,9 +1,11 @@
 import { StringKeyObjType } from './types'
 import { GifLZW } from './lzw'
+import { colorTransform } from './utils/image'
 
 const utils: StringKeyObjType = {
   gifLzwDecode: GifLZW.decode,
   gifLzwEncode: GifLZW.encode,
+  colorTransform,
 }
 
 onmessage = e => {
@@ -16,6 +18,6 @@ onmessage = e => {
     }
     postMessage(res)
   } else {
-    console.log('指定操作不存在')
+    console.log(`action ${action} not found`)
   }
 }

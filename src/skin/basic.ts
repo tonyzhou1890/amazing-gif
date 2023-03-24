@@ -1,11 +1,11 @@
-import AMZGif from "..";
-import SkinBase from "./base";
-import playSvg from "./assets/play.svg"
-import loadingSvg from "./assets/loading.svg"
-import { errMsgs } from "../helpers";
+import AMZGif from '..'
+import SkinBase from './base'
+import playSvg from './assets/play.svg'
+import loadingSvg from './assets/loading.svg'
+import { errMsgs } from '../utils/helpers'
 
 export default class BasicSkin extends SkinBase {
-  constructor(amzGif: AMZGif) {
+  constructor (amzGif: AMZGif) {
     super(amzGif)
     this.handlePlay = this.handlePlay.bind(this)
     this.dirtyChecking = this.dirtyChecking.bind(this)
@@ -20,7 +20,7 @@ export default class BasicSkin extends SkinBase {
   loadingImg: HTMLImageElement | null = null
   loadingImgRoate = 0
 
-  init() {
+  init () {
     const container = (this.amzGif._canvas as HTMLCanvasElement).parentElement
     if (!container) {
       this.amzGif._errCall(errMsgs.skinError, 'onError')
@@ -58,7 +58,7 @@ export default class BasicSkin extends SkinBase {
     this.amzGif._rAFCallbackQueue.push(this.dirtyChecking.bind(this))
   }
 
-  genMask(width: number, height: number) {
+  genMask (width: number, height: number) {
     const div = document.createElement('div')
     div.style.backgroundColor = 'rgba(0, 0, 0, 0.3)'
     div.style.width = width + 'px'
@@ -72,7 +72,7 @@ export default class BasicSkin extends SkinBase {
     return div
   }
 
-  setWatch(): void {
+  setWatch (): void {
     this.watch['isPlaying'] = (newValue: boolean) => {
       if (this.playDiv) {
         this.playDiv.style.display = newValue || this.amzGif.isLoading ? 'none' : 'flex'
@@ -82,13 +82,13 @@ export default class BasicSkin extends SkinBase {
       if (this.loadingDiv) {
         this.loadingDiv.style.display = newValue ? 'flex' : 'none'
         if (newValue && this.loadingImg) {
-          this.loadingImg.style.transform = `rotate(${this.loadingImgRoate += 1}deg)`
+          this.loadingImg.style.transform = `rotate(${(this.loadingImgRoate += 1)}deg)`
         }
       }
     }
   }
 
-  handlePlay() {
+  handlePlay () {
     if (!this.amzGif.isPlaying) {
       this.amzGif.play()
     }

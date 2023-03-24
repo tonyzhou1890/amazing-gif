@@ -1,7 +1,8 @@
 import decode from './decoder'
 import encode from './encoder'
-import { generateIndependentImageData, generateFullCanvasImageData } from './render'
-import { GifData } from './types'
+import build from './builder'
+import { generateRawImageData, generateFullCanvasImageData } from './render'
+import { GifData, ToBuildDataType } from './types'
 
 const kit = {
   /**
@@ -24,10 +25,17 @@ const kit = {
   },
 
   /**
+   * build image data list to gif
+   */
+  async build (data: ToBuildDataType): Promise<Uint8Array> {
+    return build(data)
+  },
+
+  /**
    * get frame ImageData
    * single frame, support transparent, without regard to disposal method
    */
-  getFrameImageData: generateIndependentImageData,
+  getFrameImageData: generateRawImageData,
 
   /**
    * get frames ImageData[]
@@ -35,7 +43,7 @@ const kit = {
    */
   getFramesImageData (gifData: GifData): ImageData[] {
     return gifData.frames.map((_, index) => {
-      return generateIndependentImageData(gifData, index)
+      return generateRawImageData(gifData, index)
     })
   },
 

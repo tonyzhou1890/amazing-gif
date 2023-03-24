@@ -1,8 +1,8 @@
-import { fillBoxPixels, isOdd } from "../helpers"
+import { fillBoxPixels, isOdd } from '../utils/helpers'
 /**
  * box blur
  */
-export default function boxBlur(imgData: ImageData, boxSize: number = 5) {
+export default function boxBlur (imgData: ImageData, boxSize = 5) {
   const tempImgData = new ImageData(imgData.width, imgData.height)
   tempImgData.data.set(imgData.data)
   // boxSize need be odd

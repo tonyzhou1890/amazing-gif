@@ -1,5 +1,5 @@
 import { EventFuncNameType, ReadCtrlType, GifFrameData, GifData } from './types'
-import { errMsgs, isFunc } from './helpers'
+import { errMsgs, isFunc } from './utils/helpers'
 import worker from './promiseWorker'
 
 /**

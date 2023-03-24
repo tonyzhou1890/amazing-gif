@@ -1,15 +1,16 @@
-import AMZGif from "..";
+import AMZGif from '..';
+import { AnyFuncType } from '../types';
 /**
  * base skin class
  */
 export default class SkinBase {
     constructor(amzGif: AMZGif);
     cache: {
-        [x: string]: any;
+        [x: string]: unknown;
     };
     keys: Array<string>;
     watch: {
-        [x: string]: Function;
+        [x: string]: AnyFuncType;
     };
     amzGif: AMZGif;
     init(): void;

@@ -65,6 +65,9 @@
   <div>
     <img id="example2" src="./assets/sample2-cover.jpg" alt="">
   </div>
+  <div>
+    <button id="build-gif">合成 gif</button>
+  </div>
   <script>
     // 样例1
     let amz1 = null
@@ -118,6 +121,23 @@
         })
       }
     }
+
+    // 生成 gif
+    const buildBtn = document.querySelector('#build-gif')
+    buildBtn.addEventListener('click', async () => {
+      const res = await AMZGif.gifKit.build({
+        repetition: 0,
+        frames: amz1.gifData.frames.map(item => {
+          return {
+            imageData: item.canvasImageData
+          }
+        })
+      })
+      console.log(res)
+      const blob = new Blob([res], { type: 'image/gif' })
+      const objUrl = URL.createObjectURL(blob)
+      window.open(objUrl)
+    })
   </script>
 </body>
 </html>

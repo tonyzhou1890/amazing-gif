@@ -1,4 +1,4 @@
-import { Config, GifData } from './types';
+import { AnyFuncType, Config, EventFuncNameType, GifData } from './types';
 declare class AMZGif {
     constructor(config: Config);
     static filter: {
@@ -17,9 +17,10 @@ declare class AMZGif {
         boxBlur: typeof import("./filter/boxBlur").default;
     };
     static gifKit: {
-        decode(buf: ArrayBuffer, errorCallback: Function): Promise<GifData | undefined>;
+        decode(buf: ArrayBuffer, errorCallback: (msg: string) => undefined): Promise<GifData | undefined>;
         encode(gifData: GifData): Promise<Uint8Array>;
-        getFrameImageData: typeof import("./render").generateIndependentImageData;
+        build(data: import("./types").ToBuildDataType): Promise<Uint8Array>;
+        getFrameImageData: typeof import("./render").generateRawImageData;
         getFramesImageData(gifData: GifData): ImageData[];
         getCompositeFrameImageData: typeof import("./render").generateFullCanvasImageData;
         getCompositeFramesImageData(gifData: GifData): ImageData[];
@@ -35,7 +36,7 @@ declare class AMZGif {
     gifData: GifData | null;
     _currFrame: number;
     _nextUpdateTime: number;
-    _rAFCallbackQueue: Array<Function>;
+    _rAFCallbackQueue: Array<AnyFuncType>;
     /**
      * loading gif
      */
@@ -62,7 +63,7 @@ declare class AMZGif {
      * @member play
      * play gif
      */
-    play(): Promise<void>;
+    play(): Promise<undefined>;
     /**
      * pause
      */
@@ -71,15 +72,15 @@ declare class AMZGif {
      * play next frame munually
      * @returns
      */
-    nextFrame(): string | void;
+    nextFrame(): string | undefined;
     /**
      * play prev frame manually
      */
-    prevFrame(): string | void;
+    prevFrame(): string | undefined;
     /**
      * jump
      */
-    jump(frameIndex: number): string | void;
+    jump(frameIndex: number): string | undefined;
     /**
      * set speed
      */
@@ -102,6 +103,6 @@ declare class AMZGif {
      * @ignore
      * handleError
      */
-    _errCall(msg: string, funcName: 'onLoad' | 'onError' | 'onLoadError' | 'onDataError'): void;
+    _errCall(msg: string, funcName: EventFuncNameType): undefined;
 }
 export default AMZGif;

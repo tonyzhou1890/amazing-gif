@@ -1,19 +1,23 @@
-import { generateIndependentImageData, generateFullCanvasImageData } from './render';
-import { GifData } from "./types";
+import { generateRawImageData, generateFullCanvasImageData } from './render';
+import { GifData, ToBuildDataType } from './types';
 declare const kit: {
     /**
      * decode gif (ArrayBuffer)
      */
-    decode(buf: ArrayBuffer, errorCallback: Function): Promise<GifData | undefined>;
+    decode(buf: ArrayBuffer, errorCallback: (msg: string) => undefined): Promise<GifData | undefined>;
     /**
      * encode gif
      */
     encode(gifData: GifData): Promise<Uint8Array>;
     /**
+     * build image data list to gif
+     */
+    build(data: ToBuildDataType): Promise<Uint8Array>;
+    /**
      * get frame ImageData
      * single frame, support transparent, without regard to disposal method
      */
-    getFrameImageData: typeof generateIndependentImageData;
+    getFrameImageData: typeof generateRawImageData;
     /**
      * get frames ImageData[]
      * this will take a long time
