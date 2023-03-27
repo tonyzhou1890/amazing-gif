@@ -167,6 +167,7 @@ export interface QuantizedFrameType {
 export interface ToBuildDataType {
     backgroundColor?: string;
     repetition: number;
+    dithering?: boolean;
     frames: Array<ToBuildFrameDataType>;
 }
 /**
@@ -192,5 +193,12 @@ export interface RGBAMAPType {
 export interface ColorTableAndFramesType {
     colorTable: Array<Array<number>>;
     frames: Array<QuantizedFrameType>;
+}
+/**
+ * color and index
+ */
+export interface ColorAndIndexType {
+    color: Array<number>;
+    index: number;
 }
 export {};

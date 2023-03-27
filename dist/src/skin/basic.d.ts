@@ -1,5 +1,5 @@
-import AMZGif from "..";
-import SkinBase from "./base";
+import AMZGif from '..';
+import SkinBase from './base';
 export default class BasicSkin extends SkinBase {
     constructor(amzGif: AMZGif);
     playDiv: HTMLDivElement | null;

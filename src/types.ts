@@ -206,6 +206,8 @@ export interface ToBuildDataType {
   backgroundColor?: string
   // repetition, 0 represents infinite
   repetition: number
+  // dithering, default true
+  dithering?: boolean
   // frames
   frames: Array<ToBuildFrameDataType>
 }
@@ -232,4 +234,12 @@ export interface RGBAMAPType {
 export interface ColorTableAndFramesType {
   colorTable: Array<Array<number>>
   frames: Array<QuantizedFrameType>
+}
+
+/**
+ * color and index
+ */
+export interface ColorAndIndexType {
+  color: Array<number>
+  index: number
 }

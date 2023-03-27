@@ -69,7 +69,7 @@ export default async function build (data: ToBuildDataType) {
       console.log(g)
       return worker({
         action: 'colorTransform',
-        param: [g.map(frame => frame.frameData)],
+        param: [g.map(frame => frame.frameData), data.dithering],
       }) as Promise<ColorTableAndFramesType>
     })
   )

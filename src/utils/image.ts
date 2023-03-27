@@ -10,6 +10,23 @@ export function getPixelByPoint (imgData: ImageData, x: number, y: number): Uint
 }
 
 /**
+ * get index by point
+ */
+export function getIndexByPoint (imgData: ImageData, x: number, y: number): number {
+  return (y * imgData.width + x) * 4
+}
+
+/**
+ * get point by index
+ */
+export function getPointByIndex (imgData: ImageData, index: number): Point {
+  return {
+    x: (index / 4) % imgData.width,
+    y: (index / 4) >> 0,
+  }
+}
+
+/**
  * get max width and max height
  */
 export function getMaxImageSize (...args: Array<ImageData>): Point {
@@ -151,7 +168,10 @@ export function rgba2rgb (
 /**
  * color transform to indices
  */
-export function colorTransform (frames: Array<ToBuildFrameDataType>): ColorTableAndFramesType {
+export function colorTransform (
+  frames: Array<ToBuildFrameDataType>,
+  dithering = false
+): ColorTableAndFramesType {
   const data: ColorTableAndFramesType = {
     colorTable: [],
     frames: [],
@@ -194,13 +214,14 @@ export function colorTransform (frames: Array<ToBuildFrameDataType>): ColorTable
 
   // set color and indices
   for (let i = 0, len = frames.length; i < len; i++) {
-    const imageData = frames[i].imageData
+    const imageData = new ImageData(frames[i].imageData.width, frames[i].imageData.height)
+    imageData.data.set(frames[i].imageData.data)
+    // const imageData = frames[i].imageData
     const indices = new Uint8Array(imageData.width * imageData.height)
 
     for (let j = 0, p = 0, len2 = imageData.width * imageData.height * 4; j < len2; j += 4, p++) {
       if (imageData.data[j + 3] !== 0) {
         let newColor = null
-        let newColorKey = ''
         const key = [imageData.data[j], imageData.data[j + 1], imageData.data[j + 2]].join()
 
         if (colorCache.has(key)) {
@@ -214,9 +235,8 @@ export function colorTransform (frames: Array<ToBuildFrameDataType>): ColorTable
           colorCache.set(key, newColor)
 
           // fill color table
-          newColorKey = newColor.join()
-          if (!indicesCache.has(newColorKey)) {
-            indicesCache.set(newColorKey, data.colorTable.length)
+          if (!indicesCache.has(newColor.join())) {
+            indicesCache.set(newColor.join(), data.colorTable.length)
             data.colorTable.push([newColor[0], newColor[1], newColor[2]])
           }
         }
@@ -225,7 +245,7 @@ export function colorTransform (frames: Array<ToBuildFrameDataType>): ColorTable
         imageData.data[j + 1] = newColor[1]
         imageData.data[j + 2] = newColor[2]
 
-        indices[p] = indicesCache.get(newColorKey)
+        indices[p] = indicesCache.get(newColor.join())
       } else {
         indices[p] = transparantColorIdx
       }
@@ -242,7 +262,137 @@ export function colorTransform (frames: Array<ToBuildFrameDataType>): ColorTable
   transparantColor = transparantColor || data.colorTable[data.colorTable.length - 1]
   data.colorTable.push([transparantColor[0], transparantColor[1], transparantColor[1]])
 
+  if (dithering) {
+    imageDithering(frames, data, indicesCache)
+    // return colorTransform(frames.map((item, idx) => {
+    //   return {
+    //     ...item,
+    //     imageData: data.frames[idx].imageData
+    //   }
+    // }),)
+  }
+
   return data
+}
+
+/**
+ * dithering
+ * error diffusion matrix:
+ *   [     ,    *, 7/16 ]
+ *   [ 3/16, 5/16, 1/16 ]
+ */
+export function imageDithering (
+  frames: Array<ToBuildFrameDataType>,
+  data: ColorTableAndFramesType,
+  indicesCache: Map<any, any>
+): ColorTableAndFramesType {
+  const matrix = [
+    [1, 0, 7 / 16],
+    [-1, 1, 3 / 16],
+    [0, 1, 5 / 16],
+    [1, 1, 1 / 16],
+  ]
+
+  const colorCache = new Map()
+
+  // frame
+  for (let i = 0, len = frames.length; i < len; i++) {
+    const rawImageData = frames[i].imageData
+    const imageData = data.frames[i].imageData
+    const copyImageData = new ImageData(imageData.width, imageData.height)
+    copyImageData.data.set(imageData.data)
+    const indices = data.frames[i].indices
+
+    // pixel
+    for (let j = 0, len2 = rawImageData.width * rawImageData.height * 4; j < len2; j += 4) {
+      // skip transparant pixel
+      if (imageData.data[j + 3] === 0) {
+        continue
+      }
+      const p1 = getPointByIndex(rawImageData, j)
+
+      // position offset
+      for (let k = 0; k < 4; k++) {
+        const c = matrix[k]
+        const p2 = {
+          x: p1.x + c[0],
+          y: p1.y + c[1],
+        }
+
+        if (p2.x >= 0 && p2.x < rawImageData.width && p2.y >= 0 && p2.y < rawImageData.height) {
+          const index = getIndexByPoint(rawImageData, p2.x, p2.y)
+
+          // skip transparant pixel
+          if (imageData.data[index + 3] === 0) {
+            continue
+          }
+
+          // channel
+          for (let l = 0; l < 3; l++) {
+            // const diff = rawImageData.data[j + l] - copyImageData.data[j + l]
+            const diff = rawImageData.data[j + l] - imageData.data[j + l]
+            imageData.data[index + l] += diff * c[2]
+          }
+        }
+      }
+
+      // set new color and index
+      const color = [imageData.data[j], imageData.data[j + 1], imageData.data[j + 2]]
+      const newColor = getClosestColor(color, data.colorTable, colorCache)
+      imageData.data[j] = newColor[0]
+      imageData.data[j + 1] = newColor[1]
+      imageData.data[j + 2] = newColor[2]
+      indices[(j / 4) >> 0] = indicesCache.get(newColor.join())
+    }
+    const temp = new ImageData(imageData.width, imageData.height)
+    temp.data.set(imageData.data)
+    // console.log(temp.data, indices, indicesCache)
+  }
+
+  return data
+}
+
+/**
+ * get closest color
+ */
+export function getClosestColor (
+  color: Array<number>,
+  colorTable: Array<Array<number>>,
+  colorCache: Map<any, any>
+): Array<number> {
+  const key = color.join()
+  if (colorCache.has(key)) {
+    return colorCache.get(key)
+  } else {
+    let res = [] as Array<number>
+    let distance = Infinity
+    let index = -1
+    for (let i = 0, len = colorTable.length; i < len; i++) {
+      // https://www.cnblogs.com/wxl845235800/p/11085802.html
+      // current color
+      const cc = colorTable[i]
+      const r = (color[0] + cc[0]) / 2
+      const deltaR = color[0] - cc[0]
+      const deltaG = color[1] - cc[1]
+      const deltaB = color[2] - cc[2]
+      const deltaC = Math.sqrt(
+        (2 + r / 256) * deltaR * deltaR +
+          4 * deltaG * deltaG +
+          (2 + (255 - r) / 256) * deltaB * deltaB
+      )
+
+      if (deltaC < distance) {
+        distance = deltaC
+        index = i
+        if (distance < 1) {
+          break
+        }
+      }
+    }
+    res = [...colorTable[index], 1]
+    colorCache.set(key, res)
+    return res
+  }
 }
 
 /**

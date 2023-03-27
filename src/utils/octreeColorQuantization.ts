@@ -77,7 +77,7 @@ export default class Quantizer {
   // get color--get transformed color
   getColor (r: number, g: number, b: number): Array<number> {
     let parentNode = this.tree
-    const color = [0, 0, 0, 1]
+    const color = [0, 0, 0, 0]
     for (let i = 7; i >= 0; i--) {
       const idx = (getBits(r, i, 1) << 2) + (getBits(g, i, 1) << 1) + getBits(b, i, 1)
 
@@ -91,6 +91,7 @@ export default class Quantizer {
         color[0] = (node.redSum / node.count) >> 0
         color[1] = (node.greenSum / node.count) >> 0
         color[2] = (node.blueSum / node.count) >> 0
+        color[3] = 1
         break
       }
 

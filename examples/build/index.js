@@ -3,9 +3,9 @@ function buildFromJpg() {
   const wrapperEl = document.querySelector('#ex1')
 
   const images = [
-    // 'Multicolor-01-2.3.001-bigpicture_01_1.jpg',
+    'Multicolor-01-2.3.001-bigpicture_01_1.jpg',
     // 'Multicolor-01-2.3.001-bigpicture_01_10.jpg',
-    'Multicolor-01-2.3.001-bigpicture_01_11.jpg',
+    // 'Multicolor-01-2.3.001-bigpicture_01_11.jpg',
   ]
 
   const imagesEl = []
@@ -53,6 +53,23 @@ function buildFromJpg() {
           const el = document.createElement('img')
           el.src = objUrl
           wrapperEl.appendChild(el)
+          AMZGif.gifKit
+            .build({
+              repetition: 0,
+              dithering: true,
+              frames: imageDataList.map(item => {
+                return {
+                  imageData: item,
+                }
+              }),
+            })
+            .then(res => {
+              const blob = new Blob([res], { type: 'image/gif' })
+              const objUrl = URL.createObjectURL(blob)
+              const el = document.createElement('img')
+              el.src = objUrl
+              wrapperEl.appendChild(el)
+            })
         })
     }
   }
