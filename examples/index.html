@@ -127,6 +127,7 @@
     buildBtn.addEventListener('click', async () => {
       const res = await AMZGif.gifKit.build({
         repetition: 0,
+        dithering: true,
         frames: amz1.gifData.frames.map(item => {
           return {
             imageData: item.canvasImageData

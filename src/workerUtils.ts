@@ -1,11 +1,12 @@
 import { StringKeyObjType } from './types'
 import { GifLZW } from './lzw'
-import { colorTransform } from './utils/image'
+import { colorTransform, replaceRepetedIndices } from './utils/image'
 
 const utils: StringKeyObjType = {
   gifLzwDecode: GifLZW.decode,
   gifLzwEncode: GifLZW.encode,
   colorTransform,
+  replaceRepetedIndices,
 }
 
 onmessage = e => {

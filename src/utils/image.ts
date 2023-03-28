@@ -398,6 +398,61 @@ export function getClosestColor (
 /**
  * replace same indices in adjacent images to transparant indices
  */
-export function replaceRepetedIndices (gifData: GifData) {
-  console.log(gifData)
+export function replaceRepetedIndices (gifData: GifData): GifData {
+  // if some frames have local color table, skip all
+  if (gifData.frames.some(frame => frame.lctFlag)) {
+    return gifData
+  }
+
+  const bgIndex = gifData.header.bgIndex
+  const width = gifData.header.width
+  const height = gifData.header.height
+  let lastFullIndices = new Uint8Array(width * height).fill(bgIndex)
+
+  for (let i = 0, len = gifData.frames.length; i < len; i++) {
+    const frame = gifData.frames[i]
+    const snapshot = new Uint8Array(lastFullIndices)
+
+    for (let j = 0, len2 = snapshot.length; j < len2; j++) {
+      const x = j % width
+      const y = (j / width) >> 0
+
+      if (
+        x >= frame.left &&
+        x < frame.left + frame.width &&
+        y >= frame.top &&
+        y < frame.top + frame.height
+      ) {
+        const fIdx = (y - frame.top) * frame.width + (x - frame.left)
+
+        // set transparant index
+        if (frame.transColorFlag) {
+          if (
+            frame.imageData[fIdx] !== frame.transColorIdx &&
+            frame.imageData[fIdx] !== bgIndex &&
+            frame.imageData[fIdx] === snapshot[j]
+          ) {
+            frame.imageData[fIdx] = frame.transColorIdx
+          }
+        }
+
+        snapshot[j] = frame.imageData[fIdx]
+      }
+    }
+
+    // keep this frame image
+    if ([0, 1].includes(frame.disposalMethod)) {
+      lastFullIndices = snapshot
+    } else if (frame.disposalMethod === 2) {
+      // reset area of this frame to background color
+      for (let y = 0; y < frame.height; y++) {
+        for (let x = 0; x < frame.width; x++) {
+          const idx = (y + frame.top) * width + x + frame.left
+          snapshot[idx] = bgIndex
+        }
+      }
+      lastFullIndices = snapshot
+    }
+  }
+  return gifData
 }

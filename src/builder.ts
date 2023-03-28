@@ -133,8 +133,25 @@ export default async function build (data: ToBuildDataType) {
     frame.imageEndByte = 0
   })
 
+  // set transparant color
+  const copyGifData = (await worker({
+    action: 'replaceRepetedIndices',
+    param: [gifData],
+  })) as GifData
+
+  return new Promise((resolve: (data: Uint8Array) => void) => {
+    Promise.all([encode(gifData), encode(copyGifData)]).then(res => {
+      const e1 = res[0]
+      const e2 = res[1]
+      if (e1.length < e2.length) {
+        resolve(e1)
+      } else {
+        resolve(e2)
+      }
+    })
+  })
   // encode
-  return encode(gifData)
+  // return encode(gifData)
 }
 
 /**
