@@ -456,3 +456,54 @@ export function replaceRepetedIndices (gifData: GifData): GifData {
   }
   return gifData
 }
+
+/**
+ * reorder indices
+ */
+export function reorderIndices (gifData: GifData): GifData {
+  const toSort: Array<{ index: number; color: Array<number>; count: number }> = []
+  for (let i = 0, len = gifData.header.gctList.length; i < len; i++) {
+    toSort[i] = {
+      index: i,
+      color: gifData.header.gctList[i],
+      count: 0,
+    }
+  }
+  // indices count
+  for (let i = 0, len = gifData.frames.length; i < len; i++) {
+    const frame = gifData.frames[i]
+    if (frame.lctFlag) {
+      continue
+    }
+    for (let j = 0, len2 = frame.imageData.length; j < len2; j++) {
+      toSort[frame.imageData[j]].count++
+    }
+  }
+
+  toSort.sort((a, b) => {
+    return b.count - a.count
+  })
+
+  const newIdxMap: Array<number> = []
+  toSort.forEach((val, idx) => {
+    newIdxMap[val.index] = idx
+  })
+
+  // reset color table
+  for (let i = 0, len = gifData.header.gctList.length; i < len; i++) {
+    gifData.header.gctList[i] = toSort[i].color
+  }
+  gifData.header.bgIndex = newIdxMap[gifData.header.bgIndex]
+  // reset indices
+  for (let i = 0, len = gifData.frames.length; i < len; i++) {
+    const frame = gifData.frames[i]
+    if (frame.lctFlag) {
+      continue
+    }
+    for (let j = 0, len2 = frame.imageData.length; j < len2; j++) {
+      frame.imageData[j] = newIdxMap[frame.imageData[j]]
+    }
+    frame.transColorIdx = newIdxMap[frame.transColorIdx]
+  }
+  return gifData
+}

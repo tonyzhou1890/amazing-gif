@@ -6,7 +6,7 @@ import {
   GifFrameData,
 } from './types'
 import worker from './promiseWorker'
-import { getMaxImageSize, parseColorStr } from './utils/image'
+import { getMaxImageSize, parseColorStr /* reorderIndices */ } from './utils/image'
 import { getBitsByNum } from './utils/helpers'
 import encode from './encoder'
 
@@ -138,6 +138,10 @@ export default async function build (data: ToBuildDataType) {
     action: 'replaceRepetedIndices',
     param: [gifData],
   })) as GifData
+
+  // make nosense
+  // reorderIndices(gifData)
+  // reorderIndices(copyGifData)
 
   return new Promise((resolve: (data: Uint8Array) => void) => {
     Promise.all([encode(gifData), encode(copyGifData)]).then(res => {
