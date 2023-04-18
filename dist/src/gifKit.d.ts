@@ -4,7 +4,7 @@ declare const kit: {
     /**
      * decode gif (ArrayBuffer)
      */
-    decode(buf: ArrayBuffer, errorCallback: (msg: string) => undefined): Promise<GifData | undefined>;
+    decode(buf: ArrayBuffer, errorCallback?: ((msg: string) => undefined) | undefined): Promise<GifData | undefined>;
     /**
      * encode gif
      */

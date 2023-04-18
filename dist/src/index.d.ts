@@ -17,7 +17,7 @@ declare class AMZGif {
         boxBlur: typeof import("./filter/boxBlur").default;
     };
     static gifKit: {
-        decode(buf: ArrayBuffer, errorCallback: (msg: string) => undefined): Promise<GifData | undefined>;
+        decode(buf: ArrayBuffer, errorCallback?: ((msg: string) => undefined) | undefined): Promise<GifData | undefined>;
         encode(gifData: GifData): Promise<Uint8Array>;
         build(data: import("./types").ToBuildDataType): Promise<Uint8Array>;
         getFrameImageData: typeof import("./render").generateRawImageData;

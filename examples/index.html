@@ -130,7 +130,8 @@
         dithering: true,
         frames: amz1.gifData.frames.map(item => {
           return {
-            imageData: item.canvasImageData
+            imageData: item.canvasImageData,
+            setLocalColorTable: true
           }
         })
       })

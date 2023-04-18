@@ -1491,6 +1491,7 @@ function writeGCE(data, frame) {
     data.buf[data.ptr] = setBits(data.buf[data.ptr], 0, 1, Number(frame.transColorFlag));
     // delay
     data.ptr++;
+    console.log('encode delay: ', frame.delay);
     data.buf[data.ptr++] = (frame.delay / 10) & 0xff;
     data.buf[data.ptr++] = (frame.delay / 10) >> 8;
     // transparent color index
@@ -1609,53 +1610,6 @@ function parseColorStr(colorStr) {
     }
     return data;
 }
-/**
- * reorder indices
- */
-function reorderIndices(gifData) {
-    const toSort = [];
-    for (let i = 0, len = gifData.header.gctList.length; i < len; i++) {
-        toSort[i] = {
-            index: i,
-            color: gifData.header.gctList[i],
-            count: 0
-        };
-    }
-    // indices count
-    for (let i = 0, len = gifData.frames.length; i < len; i++) {
-        const frame = gifData.frames[i];
-        if (frame.lctFlag) {
-            continue;
-        }
-        for (let j = 0, len2 = frame.imageData.length; j < len2; j++) {
-            toSort[frame.imageData[j]].count++;
-        }
-    }
-    toSort.sort((a, b) => {
-        return b.count - a.count;
-    });
-    const newIdxMap = [];
-    toSort.forEach((val, idx) => {
-        newIdxMap[val.index] = idx;
-    });
-    // reset color table
-    for (let i = 0, len = gifData.header.gctList.length; i < len; i++) {
-        gifData.header.gctList[i] = toSort[i].color;
-    }
-    gifData.header.bgIndex = newIdxMap[gifData.header.bgIndex];
-    // reset indices
-    for (let i = 0, len = gifData.frames.length; i < len; i++) {
-        const frame = gifData.frames[i];
-        if (frame.lctFlag) {
-            continue;
-        }
-        for (let j = 0, len2 = frame.imageData.length; j < len2; j++) {
-            frame.imageData[j] = newIdxMap[frame.imageData[j]];
-        }
-        frame.transColorIdx = newIdxMap[frame.transColorIdx];
-    }
-    return gifData;
-}
 
 /**
  * build imageDatas to gif
@@ -1710,7 +1664,6 @@ function build(data) {
             }
         });
         const quantizedFrames = yield Promise.all(frameGroups.map(g => {
-            console.log(g);
             return worker({
                 action: 'colorTransform',
                 param: [g.map(frame => frame.frameData), data.dithering],
@@ -1719,6 +1672,8 @@ function build(data) {
         console.log('quantizedFrames: ', quantizedFrames);
         frameGroups.map((g, gIdx) => {
             g.map((frame, fIdx) => {
+                gifData.frames[frame.frameIdx] = {};
+                gifData.frames[frame.frameIdx].imageData = quantizedFrames[gIdx].frames[fIdx].indices;
                 // global color table frames
                 if (gIdx === 0) {
                     gifData.header.gctList = quantizedFrames[gIdx].colorTable;
@@ -1726,8 +1681,6 @@ function build(data) {
                 else {
                     gifData.frames[frame.frameIdx].lctList = quantizedFrames[gIdx].colorTable;
                 }
-                gifData.frames[frame.frameIdx] = {};
-                gifData.frames[frame.frameIdx].imageData = quantizedFrames[gIdx].frames[fIdx].indices;
             });
         });
         // header set
@@ -1751,6 +1704,7 @@ function build(data) {
         }
         // frames
         gifData.frames.forEach((frame, idx) => {
+            var _a;
             const cnf = data.frames[idx];
             frame.startByte = 0;
             frame.endByte = 0;
@@ -1761,7 +1715,7 @@ function build(data) {
             frame.disposalMethod = cnf.disposalMethod || 1;
             frame.userInputFlag = false;
             frame.transColorFlag = true;
-            frame.delay = cnf.delay || 10;
+            frame.delay = (_a = cnf.delay) !== null && _a !== void 0 ? _a : 10;
             frame.lctList = frame.lctList || [];
             frame.lctFlag = !!frame.lctList.length;
             frame.interlace = false;
@@ -1778,8 +1732,9 @@ function build(data) {
             action: 'replaceRepetedIndices',
             param: [gifData],
         }));
-        reorderIndices(gifData);
-        reorderIndices(copyGifData);
+        // make nosense
+        // reorderIndices(gifData)
+        // reorderIndices(copyGifData)
         return new Promise((resolve) => {
             Promise.all([encode(gifData), encode(copyGifData)]).then(res => {
                 const e1 = res[0];
@@ -1820,7 +1775,7 @@ const kit = {
     decode(buf, errorCallback) {
         return __awaiter(this, void 0, void 0, function* () {
             return decode(buf, (msg) => {
-                return errorCallback(msg);
+                return errorCallback === null || errorCallback === void 0 ? void 0 : errorCallback(msg);
             });
         });
     },

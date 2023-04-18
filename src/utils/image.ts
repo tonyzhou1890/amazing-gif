@@ -77,7 +77,7 @@ export function imagePaste (source: ImageData, target: ImageData, x: number, y: 
   for (let i = 0; i < height; i++) {
     target.data.set(
       source.data.slice(i * source.width * 4, (i * source.width + width) * 4),
-      (i * target.width + x) * 4
+      ((i + y) * target.width + x) * 4
     )
   }
 

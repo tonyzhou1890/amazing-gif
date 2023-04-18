@@ -10,10 +10,10 @@ const kit = {
    */
   async decode (
     buf: ArrayBuffer,
-    errorCallback: (msg: string) => undefined
+    errorCallback?: (msg: string) => undefined
   ): Promise<GifData | undefined> {
     return decode(buf, (msg: string) => {
-      return errorCallback(msg)
+      return errorCallback?.(msg)
     })
   },
 

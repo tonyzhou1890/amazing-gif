@@ -66,7 +66,6 @@ export default async function build (data: ToBuildDataType) {
 
   const quantizedFrames = await Promise.all(
     frameGroups.map(g => {
-      console.log(g)
       return worker({
         action: 'colorTransform',
         param: [g.map(frame => frame.frameData), data.dithering],
@@ -78,14 +77,14 @@ export default async function build (data: ToBuildDataType) {
 
   frameGroups.map((g, gIdx) => {
     g.map((frame, fIdx) => {
+      gifData.frames[frame.frameIdx] = {} as GifFrameData
+      gifData.frames[frame.frameIdx].imageData = quantizedFrames[gIdx].frames[fIdx].indices
       // global color table frames
       if (gIdx === 0) {
         gifData.header.gctList = quantizedFrames[gIdx].colorTable
       } else {
         gifData.frames[frame.frameIdx].lctList = quantizedFrames[gIdx].colorTable
       }
-      gifData.frames[frame.frameIdx] = {} as GifFrameData
-      gifData.frames[frame.frameIdx].imageData = quantizedFrames[gIdx].frames[fIdx].indices
     })
   })
 
@@ -120,7 +119,7 @@ export default async function build (data: ToBuildDataType) {
     frame.disposalMethod = cnf.disposalMethod || 1
     frame.userInputFlag = false
     frame.transColorFlag = true
-    frame.delay = cnf.delay || 10
+    frame.delay = cnf.delay ?? 10
     frame.lctList = frame.lctList || []
     frame.lctFlag = !!frame.lctList.length
     frame.interlace = false
