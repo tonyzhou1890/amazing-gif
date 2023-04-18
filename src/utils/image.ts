@@ -202,9 +202,8 @@ export function colorTransform (
       } else {
         // rgba to rgb, change value in place
         rgba2rgb(imageData.data, j)
+        quantizer.addColor(imageData.data[j], imageData.data[j + 1], imageData.data[j + 2])
       }
-
-      quantizer.addColor(imageData.data[j], imageData.data[j + 1], imageData.data[j + 2])
     }
   }
 
