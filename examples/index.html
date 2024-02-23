@@ -15,7 +15,7 @@
 </head>
 <body>
   <h1>amazing gif examples</h1>
-  <h2>example:</h2>
+  <h2>example1: 播放 GIF</h2>
   <div>
     <div>
       <label>滤镜：</label>
@@ -38,7 +38,7 @@
     </div>
     <img id="example1" src="./assets/cat1.gif" alt="">
   </div>
-  <h2>example:</h2>
+  <h2>example2: 选择 GIF 文件播放</h2>
   <div>
     <label>滤镜：</label>
     <select id="filter-select-2">
@@ -60,11 +60,12 @@
   </div>
   <div>
     <label for="choose-input">选择文件</label>
-    <input type="file" id="choose-input">
+    <input type="file" accept=".gif" id="choose-input">
   </div>
   <div>
     <img id="example2" src="./assets/sample2-cover.jpg" alt="">
   </div>
+  <h2>example3: 合成 example1 的 GIF</h2>
   <div>
     <button id="build-gif">合成 gif</button>
   </div>
@@ -73,7 +74,7 @@
     let amz1 = null
     const exel1 = document.querySelector('#example1')
     exel1.addEventListener('load', () => {
-      amz1 = new AMZGif({
+      amz1 = new AMZGif.GifPlayer({
         el: '#example1',
         src: './assets/cat1.gif',
         speed: 1,
@@ -103,7 +104,7 @@
     function changeFile(e) {
       console.log(e)
       if (e.target.files[0]) {
-        amz2 = new AMZGif({
+        amz2 = new AMZGif.GifPlayer({
           el: '#example2',
           src: ' ',
           httpRequest: () => {
@@ -125,7 +126,7 @@
     // 生成 gif
     const buildBtn = document.querySelector('#build-gif')
     buildBtn.addEventListener('click', async () => {
-      const res = await AMZGif.gifKit.build({
+      const res = await AMZGif.build({
         repetition: 0,
         dithering: true,
         frames: amz1.gifData.frames.map(item => {

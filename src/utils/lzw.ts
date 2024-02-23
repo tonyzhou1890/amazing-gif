@@ -1,5 +1,5 @@
 // https://www.cnblogs.com/jiang08/articles/3171319.html
-import { getBits, setBits } from './utils/helpers'
+import { getBits, setBits } from './helpers'
 
 export const GifLZW = {
   /**

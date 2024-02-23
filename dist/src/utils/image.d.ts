@@ -54,7 +54,7 @@ export declare function getClosestColor(color: Array<number>, colorTable: Array<
 /**
  * replace same indices in adjacent images to transparant indices
  */
-export declare function replaceRepetedIndices(gifData: GifData): GifData;
+export declare function replaceRepeatedIndices(gifData: GifData): GifData;
 /**
  * reorder indices
  */

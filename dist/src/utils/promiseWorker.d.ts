@@ -1,4 +1,4 @@
-import { WorkerJobType } from './types';
+import { WorkerJobType } from '../types';
 /**
  * @param job {
  *  action: '',

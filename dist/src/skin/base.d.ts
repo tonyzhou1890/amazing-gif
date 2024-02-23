@@ -1,4 +1,4 @@
-import AMZGif from '..';
+import AMZGif from '../player';
 import { AnyFuncType } from '../types';
 /**
  * base skin class

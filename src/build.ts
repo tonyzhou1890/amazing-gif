@@ -5,15 +5,23 @@ import {
   ColorTableAndFramesType,
   GifFrameData,
 } from './types'
-import worker from './promiseWorker'
+import worker from './utils/promiseWorker'
 import { getMaxImageSize, parseColorStr /* reorderIndices */ } from './utils/image'
 import { getBitsByNum } from './utils/helpers'
-import encode from './encoder'
+import encode from './encode'
 
 /**
  * build imageDatas to gif
  */
 export default async function build (data: ToBuildDataType) {
+  data = Object.assign(
+    {
+      repetition: 0,
+      dithering: true,
+    },
+    data
+  )
+
   const gifData: GifData = {
     header: {
       type: 'GIF',
@@ -104,7 +112,7 @@ export default async function build (data: ToBuildDataType) {
   gifData.header.gctList = padColorTable(gifData.header.gctList)
   gifData.header.gctSize = gifData.header.gctList.length
   // app ext
-  if (gifData.appExt) {
+  if (gifData.appExt && typeof data.repetition === 'number') {
     gifData.appExt.repetitionTimes = data.repetition
   }
   // frames
@@ -134,7 +142,7 @@ export default async function build (data: ToBuildDataType) {
 
   // set transparant color
   const copyGifData = (await worker({
-    action: 'replaceRepetedIndices',
+    action: 'replaceRepeatedIndices',
     param: [gifData],
   })) as GifData
 

@@ -1,4 +1,4 @@
-import AMZGif from '..'
+import AMZGif from '../player'
 import { isFunc } from '../utils/helpers'
 import { AnyFuncType, ValueChangeType } from '../types'
 

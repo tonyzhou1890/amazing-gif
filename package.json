@@ -69,5 +69,8 @@
       "node --max_old_space_size=1024 ./node_modules/.bin/eslint --fix --color",
       "git add"
     ]
+  },
+  "dependencies": {
+    "rollup-plugin-terser": "^7.0.2"
   }
 }

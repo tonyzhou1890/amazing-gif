@@ -1,4 +1,4 @@
-import AMZGif from '..'
+import AMZGif from '../player'
 import SkinBase from './base'
 import playSvg from './assets/play.svg'
 import loadingSvg from './assets/loading.svg'

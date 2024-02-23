@@ -205,7 +205,7 @@ export interface ToBuildDataType {
   // background color, rgb(128, 128, 128) or xffffff
   backgroundColor?: string
   // repetition, 0 represents infinite
-  repetition: number
+  repetition?: number
   // dithering, default true
   dithering?: boolean
   // frames

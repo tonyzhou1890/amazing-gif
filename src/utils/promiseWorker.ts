@@ -1,5 +1,5 @@
 import Worker from 'web-worker:./workerUtils.ts'
-import { WorkerJobType, WorkerJobWrapType } from './types'
+import { WorkerJobType, WorkerJobWrapType } from '../types'
 
 const workerNum = Math.max(window.navigator.hardwareConcurrency - 1, 1) // 线程数量
 const quene = new Map()

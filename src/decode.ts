@@ -1,19 +1,19 @@
 import { EventFuncNameType, ReadCtrlType, GifFrameData, GifData } from './types'
 import { errMsgs, isFunc } from './utils/helpers'
-import worker from './promiseWorker'
+import worker from './utils/promiseWorker'
 
 /**
  * decode gif buffer
  * @param gifBuffer
  * @param errorCallback
  */
-export default (async function decode (
+export default async function decode (
   gifBuffer: ArrayBuffer,
-  errorCallback: (msg: string, type: EventFuncNameType) => undefined
+  errorCallback?: (msg: string, type: EventFuncNameType) => undefined
 ): Promise<GifData | undefined> {
   if (!(gifBuffer instanceof ArrayBuffer)) {
     if (isFunc(errorCallback)) {
-      return errorCallback(errMsgs.gifDataTypeError, 'onDataError')
+      return errorCallback!(errMsgs.gifDataTypeError, 'onDataError')
     } else {
       throw new Error(errMsgs.gifDataTypeError)
     }
@@ -45,13 +45,19 @@ export default (async function decode (
     },
     frames: [],
   }
-  let s = window.performance.now()
+
+  console.time('parse')
+
   while (readCtrl.ptr < buf.length) {
     if (readCtrl.ptr === 0) {
       // read header
       const header = readHeader(buf, readCtrl)
       if (!header.isGif) {
-        return errorCallback(errMsgs.notGif, 'onDataError')
+        if (isFunc(errorCallback)) {
+          return errorCallback!(errMsgs.notGif, 'onDataError')
+        } else {
+          throw new Error(errMsgs.notGif)
+        }
       }
       Object.assign(gifData.header, header)
     } else if (readCtrl.ptr === 6) {
@@ -107,8 +113,7 @@ export default (async function decode (
     // if (gifData.frames.length >= 2) break
     readCtrl.ptr++
   }
-  console.log('parse: ', window.performance.now() - s)
-  s = window.performance.now()
+
   const decompressedFramesData = await Promise.all(
     gifData.frames.map(item => {
       return worker({
@@ -118,12 +123,14 @@ export default (async function decode (
       })
     })
   )
-  console.log('duration: ', window.performance.now() - s)
+
+  console.timeEnd('parse')
+
   decompressedFramesData.map((data, idx) => {
     gifData.frames[idx].imageData = data as Uint8Array
   })
   return gifData
-})
+}
 
 /**
  * read gif header info

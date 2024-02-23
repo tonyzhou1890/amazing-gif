@@ -1,6 +1,6 @@
 import { GifFrameData, GifData, GifEncodeData, GifHeaderInfo, AppExt } from './types'
 import { bufferGrow, setBits, getBitsByNum } from './utils/helpers'
-import worker from './promiseWorker'
+import worker from './utils/promiseWorker'
 
 /**
  * encode gif data
@@ -208,7 +208,7 @@ function writeGCE (data: GifEncodeData, frame: GifFrameData) {
   data.buf[data.ptr] = setBits(data.buf[data.ptr], 0, 1, Number(frame.transColorFlag))
   // delay
   data.ptr++
-  console.log('encode delay: ', frame.delay)
+
   data.buf[data.ptr++] = (frame.delay / 10) & 0xff
   data.buf[data.ptr++] = (frame.delay / 10) >> 8
   // transparent color index

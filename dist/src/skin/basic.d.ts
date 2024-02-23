@@ -1,4 +1,4 @@
-import AMZGif from '..';
+import AMZGif from '../player';
 import SkinBase from './base';
 export default class BasicSkin extends SkinBase {
     constructor(amzGif: AMZGif);

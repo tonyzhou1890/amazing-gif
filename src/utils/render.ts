@@ -1,6 +1,6 @@
-import { isFunc } from './utils/helpers'
-import { AnyFuncType, GifData, GifFrameData } from './types'
-import { defaultBgColor } from './config'
+import { isFunc } from './helpers'
+import { AnyFuncType, GifData, GifFrameData } from '../types'
+import { defaultBgColor } from '../config'
 
 /**
  * generate ImageData for canvas

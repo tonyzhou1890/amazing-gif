@@ -1,4 +1,4 @@
-import { AnyFuncType, GifData } from './types';
+import { AnyFuncType, GifData } from '../types';
 /**
  * generate ImageData for canvas
  */

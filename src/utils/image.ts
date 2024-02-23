@@ -207,7 +207,7 @@ export function colorTransform (
     }
   }
 
-  console.log(quantizer)
+  // console.log(quantizer)
 
   transparantColorIdx = quantizer.colorCount
 
@@ -257,7 +257,7 @@ export function colorTransform (
   }
 
   // push transparent color to color table
-  console.log(data)
+  // console.log(data)
   transparantColor = transparantColor || data.colorTable[data.colorTable.length - 1]
   data.colorTable.push([transparantColor[0], transparantColor[1], transparantColor[1]])
 
@@ -283,7 +283,7 @@ export function colorTransform (
 export function imageDithering (
   frames: Array<ToBuildFrameDataType>,
   data: ColorTableAndFramesType,
-  indicesCache: Map<any, any>
+  indicesCache: Map<string, number>
 ): ColorTableAndFramesType {
   const matrix = [
     [1, 0, 7 / 16],
@@ -341,7 +341,7 @@ export function imageDithering (
       imageData.data[j] = newColor[0]
       imageData.data[j + 1] = newColor[1]
       imageData.data[j + 2] = newColor[2]
-      indices[(j / 4) >> 0] = indicesCache.get(newColor.join())
+      indices[(j / 4) >> 0] = indicesCache.get(newColor.join()) as number
     }
     const temp = new ImageData(imageData.width, imageData.height)
     temp.data.set(imageData.data)
@@ -397,7 +397,7 @@ export function getClosestColor (
 /**
  * replace same indices in adjacent images to transparant indices
  */
-export function replaceRepetedIndices (gifData: GifData): GifData {
+export function replaceRepeatedIndices (gifData: GifData): GifData {
   // if some frames have local color table, skip all
   if (gifData.frames.some(frame => frame.lctFlag)) {
     return gifData

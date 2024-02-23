@@ -166,7 +166,7 @@ export interface QuantizedFrameType {
  */
 export interface ToBuildDataType {
     backgroundColor?: string;
-    repetition: number;
+    repetition?: number;
     dithering?: boolean;
     frames: Array<ToBuildFrameDataType>;
 }
