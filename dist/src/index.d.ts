@@ -47,4 +47,4 @@ GifPlayer,
 /**
  * build-in filters
  */
-filter };
+filter, };

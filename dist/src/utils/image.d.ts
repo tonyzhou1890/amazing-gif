@@ -46,7 +46,7 @@ export declare function colorTransform(frames: Array<ToBuildFrameDataType>, dith
  *   [     ,    *, 7/16 ]
  *   [ 3/16, 5/16, 1/16 ]
  */
-export declare function imageDithering(frames: Array<ToBuildFrameDataType>, data: ColorTableAndFramesType, indicesCache: Map<any, any>): ColorTableAndFramesType;
+export declare function imageDithering(frames: Array<ToBuildFrameDataType>, data: ColorTableAndFramesType, indicesCache: Map<string, number>): ColorTableAndFramesType;
 /**
  * get closest color
  */

@@ -1003,7 +1003,7 @@ function build(data) {
     return __awaiter(this, void 0, void 0, function* () {
         data = Object.assign({
             repetition: 0,
-            dithering: true
+            dithering: true,
         }, data);
         const gifData = {
             header: {
@@ -1666,7 +1666,7 @@ function nostalgic(imgData) {
 function cast(imgData) {
     for (let i = 0, len = imgData.data.length; i < len; i += 4) {
         const r = imgData.data[i], g = imgData.data[i + 1], b = imgData.data[i + 2];
-        const newR = r * 128 / (g + b + 1), newG = g * 128 / (r + b + 1), newB = b * 128 / (g + r + 1);
+        const newR = (r * 128) / (g + b + 1), newG = (g * 128) / (r + b + 1), newB = (b * 128) / (g + r + 1);
         imgData.data[i] = Math.min(255, Math.max(0, newR));
         imgData.data[i + 1] = Math.min(255, Math.max(0, newG));
         imgData.data[i + 2] = Math.min(255, Math.max(0, newB));
@@ -1683,7 +1683,7 @@ function cast(imgData) {
 function frozen(imgData) {
     for (let i = 0, len = imgData.data.length; i < len; i += 4) {
         const r = imgData.data[i], g = imgData.data[i + 1], b = imgData.data[i + 2];
-        const newR = (r - g - b) * 3 / 2, newG = (g - r - b) * 3 / 2, newB = (b - g - r) * 3 / 2;
+        const newR = ((r - g - b) * 3) / 2, newG = ((g - r - b) * 3) / 2, newB = ((b - g - r) * 3) / 2;
         imgData.data[i] = Math.min(255, Math.max(0, newR));
         imgData.data[i + 1] = Math.min(255, Math.max(0, newG));
         imgData.data[i + 2] = Math.min(255, Math.max(0, newB));
@@ -1700,9 +1700,9 @@ function frozen(imgData) {
 function comic(imgData) {
     for (let i = 0, len = imgData.data.length; i < len; i += 4) {
         const r = imgData.data[i], g = imgData.data[i + 1], b = imgData.data[i + 2];
-        imgData.data[i] = Math.abs(g - b + g + r) * r / 256;
-        imgData.data[i + 1] = Math.abs(b - g + b + r) * r / 256;
-        imgData.data[i + 2] = Math.abs(b - g + b + r) * g / 256;
+        imgData.data[i] = (Math.abs(g - b + g + r) * r) / 256;
+        imgData.data[i + 1] = (Math.abs(b - g + b + r) * r) / 256;
+        imgData.data[i + 2] = (Math.abs(b - g + b + r) * g) / 256;
     }
     return imgData;
 }
