@@ -54,92 +54,6 @@ const errMsgs = {
     errData: '数据格式错误',
 };
 /**
- * @name fillBoxPixels
- * fill box pixels
- */
-function fillBoxPixels(imgData, x, y, box, boxWidth, boxHeight, pixelChannel) {
-    let xOver = false;
-    let yOver = false;
-    let xDis = 0;
-    let yDis = 0;
-    const boxCenter = [(boxWidth / 2) >> 0, (boxHeight / 2) >> 0];
-    let pixelStartIdx = 0;
-    for (let i = 0; i < boxWidth; i++) {
-        for (let j = 0; j < boxHeight; j++) {
-            xOver = false;
-            yOver = false;
-            // whether x direction overflow
-            xDis = boxCenter[0] - i;
-            if (xDis > 0) {
-                if (xDis > x) {
-                    xOver = true;
-                }
-            }
-            else {
-                if (x - xDis >= imgData.width) {
-                    xOver = true;
-                }
-            }
-            // whether y direction overflow
-            yDis = boxCenter[1] - j;
-            if (j < boxCenter[1]) {
-                if (yDis > y) {
-                    yOver = true;
-                }
-            }
-            else {
-                if (y - yDis >= imgData.height) {
-                    yOver = true;
-                }
-            }
-            // Out-of-bounds processing
-            // corner
-            if (xOver && yOver) {
-                // left-top corner
-                if (xDis > 0 && yDis > 0) {
-                    pixelStartIdx = 0;
-                }
-                else if (xDis < 0 && yDis < 0) {
-                    // right-bottom corner
-                    pixelStartIdx = (imgData.width * imgData.height - 1) * 4;
-                }
-                else if (xDis > 0) {
-                    // left-bottom corner
-                    pixelStartIdx = imgData.width * (imgData.height - 1) * 4;
-                }
-                else {
-                    // right-top corner
-                    pixelStartIdx = (imgData.width - 1) * 4;
-                }
-            }
-            else if (xOver) {
-                // left
-                if (xDis < 0) {
-                    pixelStartIdx = (y - yDis) * imgData.width * 4;
-                }
-                else {
-                    // right
-                    pixelStartIdx = ((y - yDis) * imgData.width - 1) * 4;
-                }
-            }
-            else if (yOver) {
-                // top
-                if (yDis < 0) {
-                    pixelStartIdx = (x - xDis) * 4;
-                }
-                else {
-                    // bottom
-                    pixelStartIdx = ((imgData.height - 1) * imgData.width + x - xDis) * 4;
-                }
-            }
-            // common processing
-            pixelStartIdx = ((y - yDis) * imgData.width + (x - xDis)) * 4;
-            box[i + boxWidth * j] = imgData.data[pixelStartIdx + pixelChannel];
-        }
-    }
-    return box;
-}
-/**
  * get bit depth of a num
  * @param num
  * @returns
@@ -922,6 +836,12 @@ function growGifBuffer(buf) {
     return bufferGrow(buf, 1024 * 1024);
 }
 
+/**
+ * get index by point
+ */
+function getIndexByPoint(imgData, x, y) {
+    return (y * imgData.width + x) * 4;
+}
 /**
  * get max width and max height
  */
@@ -1730,23 +1650,38 @@ function boxBlur(imgData, boxSize = 5) {
     tempImgData.data.set(imgData.data);
     // boxSize need be odd
     boxSize = isOdd(boxSize) ? boxSize : boxSize + 1;
+    const halfBoxSize = boxSize >> 1;
+    const boxLen = boxSize * boxSize;
     let x = 0;
     let y = 0;
-    let box = new Uint8ClampedArray(boxSize * boxSize);
+    let bx = 0;
+    let by = 0;
     let sum = 0;
     let avg = 0;
+    // rbg sum cache
+    const cache = [0, 0, 0];
     for (let i = 0, len = imgData.data.length; i < len; i += 4) {
         x = (i / 4) % imgData.width;
         y = (i / 4 / imgData.width) >> 0;
+        bx = x - halfBoxSize;
+        by = y - halfBoxSize;
         // rgb channels
         for (let c = 0; c < 3; c++) {
-            box = fillBoxPixels(imgData, x, y, box, boxSize, boxSize, c);
-            // box average
-            sum = 0;
-            for (let bi = 0, len = box.length; bi < len; bi++) {
-                sum += box[bi];
+            sum = cache[c];
+            // if the cell is the first of each row, calc full box
+            if (!x) {
+                sum = 0;
+                // count all box columns
+                for (let bxc = bx; bxc <= x + halfBoxSize; bxc++) {
+                    sum += getColumnSum(imgData, bxc, by, boxSize, c);
+                }
             }
-            avg = (sum / box.length) >> 0;
+            else {
+                sum -= getColumnSum(imgData, bx - 1, by, boxSize, c);
+                sum += getColumnSum(imgData, x + halfBoxSize, by, boxSize, c);
+            }
+            cache[c] = sum;
+            avg = (sum / boxLen) >> 0;
             if (avg < 0)
                 avg = 0;
             else if (avg > 255)
@@ -1755,6 +1690,31 @@ function boxBlur(imgData, boxSize = 5) {
         }
     }
     return tempImgData;
+}
+function getColumnSum(imgData, x, y, height, channel) {
+    let sum = 0;
+    for (let i = 0; i < height; i++) {
+        // out of bounds
+        if (x < 0 || y < 0 || x >= imgData.width || y >= imgData.height) {
+            // fix x
+            if (x < 0) {
+                x = 0;
+            }
+            else if (x >= imgData.width) {
+                x = imgData.width - 1;
+            }
+            // fix y
+            if (y < 0) {
+                y = 0;
+            }
+            else if (y >= imgData.height) {
+                y = imgData.height - 1;
+            }
+        }
+        sum += imgData.data[getIndexByPoint(imgData, x, y) + channel];
+        y++;
+    }
+    return sum;
 }
 
 // filters from https://www.jianshu.com/p/3122d9710bd8
@@ -2077,6 +2037,10 @@ class GifPlayer {
         this.isRendering = false;
     }
     _checkEnd() {
+        // if the delay of every frame is zero, just end
+        if (this.gifData.frames.every(frame => !frame.delay)) {
+            return true;
+        }
         if (this._currFrame > this.gifData.frames.length - 1) {
             if (this._config.loop !== false) {
                 this._currFrame = 0;

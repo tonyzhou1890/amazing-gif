@@ -2,22 +2,21 @@
 
 JavaScript GIF decoder、encoder、player.
 
+[中文文档](./README.md)
 
-[ENGLISH](./README.en.md)
+## Introduction
 
-## 简介
+For GIF pictures, the browser natively supports them, but it does not provide functions such as pausing, resuming playback, and of course, it does not provide decoding and encoding functions.
 
-对于 GIF 图片，浏览器是原生支持的，但没有提供暂停、恢复播放等功能，当然也没有提供解码、编码功能。
+This package allows you to play GIFs like a video, pause, resume playback, previous frame, next frame, double speed, and more. You can also decode each frame to ImageData, and combine several images into GIFs.
 
-此包让播放 GIF 可以像播放视频一样进行暂停、恢复播放、上一帧、下一帧、倍速等操作。还可以解码得到每一帧的 ImageData，以及将几张图片合称为 GIF。
+## Functions
 
-## 功能
+* Decode the GIF image to get the ImageData of each frame.
+* Encode GIF images, quantize the ImageData of multiple pictures and then generate GIF images.
+* Play GIF pictures with functions such as pause, resume, double speed, filters, etc.
 
-* 解码 GIF 图片，得到每一帧的 ImageData。
-* 编码 GIF 图片，将多个图片的 ImageData 量化为 GIF 的八位色，然后合成 GIF 图片。
-* 播放 GIF 图片，提供暂停、恢复、倍速、滤镜等功能。
-
-## 安装使用
+## Usage
 
 npm:
 ```
@@ -32,7 +31,7 @@ const amz = new AMZGif.GifPlayer({
   src: 'path/gif.gif'
 })
 ```
-浏览器：
+browser：
 ```
 <script src="/path/dist/index.umd.min.js"></script>
 
@@ -44,9 +43,9 @@ const amz = new AMZGif.GifPlayer({
 })
 ```
 
-## 样例
+## Examples
 
-[样例](./examples/index.html)
+[examples](./examples/index.html)
 
 [spark-gif](https://spark-gif.dowhat.top)
 
@@ -77,57 +76,57 @@ new GifPlayer(config)
 
 * el
 
-  值：id 或者 dom
+  value：id or dom
 
-  图片标签，必填。初始化的时候，这个标签会被一个`div`标签替换。`div`标签的`display`会被设为`inline-block`。如果`el`有`id`，创建的`div`会使用`el`的`id`。
+  Image tag, required. On initialization, this tag is replaced with a 'div' tag. The 'display' of the 'div' tag will be set to 'inline-block'. If 'el' has 'id', the created 'div' will use 'el''s 'id'.
 
-  建议`img`的`src`指向一张静态图片，比如`gif`的第一张，避免网页一开始就加载完整`gif`，造成不必要的流量消耗。如果不在意流量，或者本来就打算网页一打开就播放，那可以直接指向`gif`文件。
+  It is recommended that the 'src' of 'img' point to a static image, such as the first frame of 'gif', to avoid unnecessary data consumption caused by loading the full 'gif' at the beginning of the web page. If you don't care about data, or if you plan to play the gif as soon as the page is opened, you can point directly to the 'gif' file.
 
 * src
 
-  值：String
+  value：String
 
-  `gif`文件地址，必填。
+  The address of `gif` file，required。
 
 * httpRequest
 
-  值：Function
+  value：Function
 
-  获取图片的替代方法，选填。如果你的`gif`图片无法通过`fetch`直接获取，比如需要鉴权，那么你需要通过此属性定义获取`gif`的方法。该方法参数是`config.src`，返回值是`Blob`。
+  Alternative to getting an image, optional. If your 'gif' image cannot be obtained directly through 'fetch', for example, authentication is required, then you need to define the method of obtaining 'gif' through this attribute. The method parameter is 'config.src' and the return value is 'Blob'.
 
 * loop
 
-  值：Boolean
+  value：Boolean
 
-  是否循环播放，选填，默认`true`。一般`gif`都是循环播放的，除非你不希望循环播放，否则此项不需要填。
+  Whether to play in a loop, optional, default 'true'. Generally, 'gif' is looped, unless you don't want it to loop, you don't need to fill it in.
 
 * auto
 
-  值：Boolean
+  value：Boolean
 
-  是否自动播放，选填，默认`false`。如果你希望自动播放，请将该选项设置`true`。
+  Whether it plays auto-or not, optional, default 'false'. If you want autoplay, set the option to 'true'.
 
 * width
 
-  值：Number
+  value：Number
 
-  图片宽度，选填，默认为`config.el`的宽度。
+  Image width, optional, defaults to the width of 'config.el'.
 
 * height
 
   值：Number
 
-  图片高度，选填，默认为`config.el`的高度。
+  Image height, optional, defaults to the height of 'config.el'
 
 * interactive
 
-  值：Boolean
+  value：Boolean
 
-  图片是否可交互，选填，默认`true`。如果设为`false`，图片将无法通过点击的方式实现播放暂停。
+  Whether the image is interactive or not, optional, default 'true'. If this parameter is set to 'false', the image will not be able to be clicked to pause.
 
 * skin
 
-  值：String
+  value：String
 
   播放器样式，选填，默认`basic`。播放器样式只有`basic`。如果你不需要，可以设置为任何非`basic`的值。如果你需要自定义播放器样式，可以设为非`basic`值之后自行实现样式，然后通过`api`的形式播放。
 

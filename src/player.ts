@@ -346,6 +346,10 @@ class GifPlayer {
   }
 
   _checkEnd () {
+    // if the delay of every frame is zero, just end
+    if ((this.gifData as GifData).frames.every(frame => !frame.delay)) {
+      return true
+    }
     if (this._currFrame > (this.gifData as GifData).frames.length - 1) {
       if (this._config.loop !== false) {
         this._currFrame = 0

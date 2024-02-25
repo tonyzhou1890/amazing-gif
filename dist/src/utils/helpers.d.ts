@@ -30,11 +30,6 @@ export declare const errMsgs: {
     errData: string;
 };
 /**
- * @name fillBoxPixels
- * fill box pixels
- */
-export declare function fillBoxPixels(imgData: ImageData, x: number, y: number, box: Uint8ClampedArray, boxWidth: number, boxHeight: number, pixelChannel: number): Uint8ClampedArray;
-/**
  * get bit depth of a num
  * @param num
  * @returns
