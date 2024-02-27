@@ -16,7 +16,7 @@ export interface Config {
   src?: string
   // function used to get gif data
   httpRequest?: httpGifRequest
-  // need loop?
+  // need loop? this will overwrite GIF's inner value
   loop?: boolean
   auto?: boolean
   // element width. this will be img's width by default

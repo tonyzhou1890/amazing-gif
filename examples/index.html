@@ -79,7 +79,8 @@
         src: './assets/cat1.gif',
         speed: 1,
         auto: true,
-        skin: 'basic'
+        skin: 'basic',
+        loop: false
       })
       // 切换滤镜
       const filterSelect = document.querySelector('#filter-select')
@@ -104,9 +105,10 @@
     function changeFile(e) {
       console.log(e)
       if (e.target.files[0]) {
+        
         amz2 = new AMZGif.GifPlayer({
           el: '#example2',
-          src: ' ',
+          src: '',
           httpRequest: () => {
             return new Promise((resolve, reject) => {
               // const fileR = new FileReader()

@@ -1,5 +1,4 @@
 export declare const defaultConfig: {
-    loop: boolean;
     auto: boolean;
     interactive: boolean;
     skin: string;

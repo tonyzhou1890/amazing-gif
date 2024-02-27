@@ -25,8 +25,11 @@ declare class GifPlayer {
     _offscreenCtx: CanvasRenderingContext2D | null;
     _gifBuffer: ArrayBuffer | null;
     gifData: GifData | null;
+    _duration: number;
     _currFrame: number;
-    _nextUpdateTime: number;
+    _repetitionTimes: number;
+    _repetition: number;
+    _time: number;
     _rAFCallbackQueue: Array<AnyFuncType>;
     /**
      * loading gif
@@ -50,6 +53,12 @@ declare class GifPlayer {
      */
     _initCanvas(): void;
     _initContainer(): void;
+    /**
+     * 重启
+     * @param config
+     * @desc 重启播放器，可以更换 gif
+     */
+    restart(config?: Config): Promise<void>;
     /**
      * @member play
      * play gif
@@ -76,6 +85,8 @@ declare class GifPlayer {
      * set speed
      */
     setSpeed(speed: number): boolean;
+    _syncGIFTime(): void;
+    _getFrameIndexByTime(): number;
     /**
      * togglePlay by
      */
@@ -83,7 +94,7 @@ declare class GifPlayer {
     /**
      * update
      */
-    _update(time: number): void;
+    _update(time: number, timeOffset: number): void;
     _renderFrame(): void;
     _checkEnd(): boolean;
     /**
