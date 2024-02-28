@@ -52,4 +52,4 @@ filter,
 /**
  * base skin. If you want customize your skin, you can
  */
-SkinBase };
+SkinBase, };
