@@ -5,7 +5,6 @@ import decode from './decode'
 import rAF from './utils/rAF'
 import { render } from './utils/render'
 import initSkin from './skin'
-import filter from './filter'
 
 class GifPlayer {
   constructor (config: Config) {
@@ -18,8 +17,6 @@ class GifPlayer {
     this._togglePlay = this._togglePlay.bind(this)
     this._init()
   }
-
-  static filter = filter
 
   speedList = speedList
 

@@ -3,6 +3,7 @@ import encode from './encode'
 import build from './build'
 import GifPlayer from './player'
 import filter from './filter'
+import SkinBase from './skin/base'
 import { generateRawImageData, generateFullCanvasImageData } from './utils/render'
 import { GifData } from './types'
 
@@ -59,4 +60,8 @@ export {
    * build-in filters
    */
   filter,
+  /**
+   * base skin. If you want customize your skin, you can
+   */
+  SkinBase,
 }

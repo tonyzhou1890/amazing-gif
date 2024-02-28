@@ -76,7 +76,7 @@ new GifPlayer(config)
 
 * el
 
-  value：id or dom
+  type：id or dom
 
   Image tag, required. On initialization, this tag is replaced with a 'div' tag. The 'display' of the 'div' tag will be set to 'inline-block'. If 'el' has 'id', the created 'div' will use 'el''s 'id'.
 
@@ -84,31 +84,31 @@ new GifPlayer(config)
 
 * src
 
-  value：String
+  type：String
 
   The address of `gif` file，required。
 
 * httpRequest
 
-  value：Function
+  type：Function
 
   Alternative to getting an image, optional. If your 'gif' image cannot be obtained directly through 'fetch', for example, authentication is required, then you need to define the method of obtaining 'gif' through this attribute. The method parameter is 'config.src' and the return value is 'Blob'.
 
 * loop
 
-  value：Boolean
+  type：Boolean
 
   Whether to play in a loop, optional, default 'true'. Generally, 'gif' is looped, unless you don't want it to loop, you don't need to fill it in.
 
 * auto
 
-  value：Boolean
+  type：Boolean
 
   Whether it plays auto-or not, optional, default 'false'. If you want autoplay, set the option to 'true'.
 
 * width
 
-  value：Number
+  type：Number
 
   Image width, optional, defaults to the width of 'config.el'.
 
@@ -120,27 +120,31 @@ new GifPlayer(config)
 
 * interactive
 
-  value：Boolean
+  type：Boolean
 
   Whether the image is interactive or not, optional, default 'true'. If this parameter is set to 'false', the image will not be able to be clicked to pause.
 
 * skin
 
-  value：String
-
-  播放器样式，选填，默认`basic`。播放器样式只有`basic`。如果你不需要，可以设置为任何非`basic`的值。如果你需要自定义播放器样式，可以设为非`basic`值之后自行实现样式，然后通过`api`的形式播放。
+  type：String
+  Player style, optional, default 'basic'. The player style is only 'basic'. If you don't need it, you can set it to any value other than 'basic'. If you need to customize the player style, you can set it to a non-'basic' value and then implement the style yourself, and then play it in the form of 'API'.
+  ```
+  const amz = new GifPlayer(/***/)
+  class CustomSkin extends SkinBase {/* See src/skin/basic.ts */}
+  new CustomSkin(amz)
+  ```
 
 * speed
 
-  值：Number
+  type：Number
 
-  播放速度，选填，默认`1`。可以选填`0.5/1/1.5/2`中的任一个。
+  Playback speed, optional, default '1'. You can choose any of '0.5/1/1.5/2'.
 
 * filter
 
-  值：Function
+  type：Function
 
-  滤镜。可选。GifPlayer 类上自带了部分滤镜，也可以根据需求自己实现。
+  Filter. Optional. Some filters come with the GifPlayer class, or you can implement them yourself according to your needs.
 
   ```
   const amz1 = new GifPlayer({
@@ -149,81 +153,81 @@ new GifPlayer(config)
     speed: 1,
     auto: true,
     skin: 'basic',
-    filter: GifPlayer.filter.grayscale
+    filter: filter.grayscale
   })
   ```
-  |滤镜|说明|
-  |--|--|
-  |grayscale|灰度|
-  |blackAndWhite|黑白|
-  |reverse|反向|
-  |decolorizing|去色|
-  |monochromeRed|单色红|
-  |monochromeGreen|单色绿|
-  |monochromeBlue|单色蓝|
-  |nostalgic|怀旧|
-  |cast|熔铸|
-  |frozen|冰冻|
-  |comic|连环画|
-  |brown|褐色|
-  |boxBlur|模糊|
+
+  filter list:
+
+  * grayscale
+  * blackAndWhite
+  * reverse
+  * decolorizing
+  * monochromeRed
+  * monochromeGreen
+  * monochromeBlue
+  * nostalgic
+  * cast
+  * frozen
+  * comic
+  * brown
+  * boxBlur
 
 * onLoad
 
-  值：Function
+  type：Function
 
-  `gif`加载完成的回调，选填。没有参数，无需返回值。自定义`httpRequest`的时候没有该回调。
+  The callback after the gif load is complete, optional. There are no parameters, no return value. There is no such callback when customizing httpRequest.
 
 * onLoadError
 
-  值：Function
+  type：Function
 
-  `gif`加载失败的回调，选填。参数为错误信息字符串。除了网络错误，`Blob`转`ArrayBuffer`发生错误也会调用此回调。
+  Callback for gif loading failure, optional. The parameter is an error message string. In addition to network errors, this callback is also invoked if an error occurs when 'Blob' turns to 'ArrayBuffer'.
 
 * onDataError
 
-  值：Function
+  type：Function
 
-  `gif`数据错误回调，选填。参数为错误信息字符串。
+  GIF data error callback, optional. The parameter is an error message string.
 
 * onError
 
-  值：Function
+  type：Function
 
-  错误回调，选填。当以上几个错误回调未定义时，会调用此方法。如果此方法也未定义，会抛出错误。
+  Error callback, optional. This method is called when the above error callbacks are undefined. If this method is also not defined, an error is thrown.
 
 * onBeforePlay
 
-  值：Function
+  type：Function
 
-  播放前回调，选填。没有参数。如果返回非`truly`值，将不会播放。
+  Callback before playback, optional. There are no parameters. If a non-truly value is returned, it will not be played.
 
 * onPlay
 
-  值：Function
+  type：Function
 
-  播放回调，选填。没有参数。不需要返回值。
+  Play callback, optional. There are no parameters. No return value is required.
 
 * onEnd
 
-  值：Function
+  type：Function
 
-  结束回调，选填。没有参数。不需要返回值。如果循环播放，该回调将不会调用。
+  End callback, optional. There are no parameters. No return value is required. If it loops, the callback will not be called.
 
 * onBeforePause
 
-  值：Function
+  type：Function
 
-  暂停回调，选填。没有参数。如果返回非`truly`值，将不会暂停。
+  Pause callback, optional. There are no parameters. If a non-truly value is returned, it will not be paused.
 
 * onPause
 
-  值：Function
+  type：Function
 
-  暂停回调，选填。没有参数。不需要返回值。
+  Pause callback, optional. There are no parameters. No return value is required.
 
-
-#### 实例 API：
+#### Instance API：
 
 ```
 const amz = new GifPlayer(config)
@@ -232,136 +236,134 @@ amz.xxx
 
 * isLoading
 
-  值：Boolean
+  type：Boolean
 
-  是否正在加载。
+  Whether it is loading.
 
 * isPlaying
 
-  值：Boolean
+  type：Boolean
 
-  是否正在播放。
+  Whether or not it is playing.
 
 * isRendering
 
-  值：Boolean
+  type：Boolean
 
-  是否正在渲染。
+  Whether or not it is rendering.
 
 * play
 
-  值：Function
+  type：Function
 
-  播放。
+  Play GIF.
   ```
   const amz = new GifPlayer({
     el: '#example1',
     src: '/path/xxx.gif',
     auto: false
   })
-  // 请确保 el 加载完毕再调用 play。因为包内部是在 el 的 load 事件里初始化的。
+  // Make sure the 'el' is loaded before calling play. This is because the package internals are initialized in the load event of el.
   amz.play()
   ```
 
 * pause
 
-  值：Function
+  type：Function
 
-  暂停。
+  Pause play.
   ```
   const amz = new GifPlayer({
     el: '#example1',
     src: '/path/xxx.gif',
     auto: false
   })
-  // 仅加载 gif。
-  // 请确保 el 加载完毕再调用 play。因为包内部是在 el 的 load 事件里初始化的。
+  // Make sure the 'el' is loaded before calling play. This is because the package internals are initialized in the load event of el.
   amz.play().then(() => amz.pause())
   ```
 
 * nextFrame
 
-  值：Function
+  type：Function
 
-  下一帧。不管`config.loop`是什么，`nextFrame`都可以一直调用。
+  Next frame. Regardless of what 'config.loop' is, 'nextFrame' can be called all the time.
 
 * prevFrame
 
-  值：Function
+  type：Function
 
-  上一帧。不管`config.loop`是什么，`prevFrame`都可以一直调用。
+  Previous frame. 'prevFrame' can be called all the time, no matter what 'config.loop' is.
 
 * jump
 
-  值：Function
+  type：Function
 
-  跳帧。参数为帧下标。如果帧下标超出范围，会从下标0的帧开始。
+  Frame skipping. The parameter is a frame index. If the index is out of range, it starts at the frame with index 0.
 
 * setSpeed
 
-  值：Function
+  type：Function
 
-  设置播放速度。参数为`0.5/1/1.5/2`中的一个数字。
-
+  Set the play speed. The parameter is a number in '0.5/1/1.5/2'.
 ### decode
 
-解码 GIF 图片，得到一个 GIF 描述对象(GifData)，包含 GIF 的头信息，各个帧的数据。参数如下：
+Decode the GIF image to get a GIF description object (GifData), which contains the header information of the GIF and the data of each frame. The parameters are as follows:
 
-* gifBuffer: GIF 图片的数据，ArrayBuffer 格式。
+* gifBuffer: The ArrayBuffer of gif image.
 
-* errorCallback?：发生错误时的回调函数，参数为错误信息和错误类型（'onLoad' | 'onError' | 'onLoadError' | 'onDataError'）。如果没有配置该函数，请用 try……catch 处理错误，此时只有错误信息。
+* errorCallback?：The callback function in the event of an error, with the parameters of the error message and the error type ('onLoad' | 'onError' | 'onLoadError' | 'onDataError'）。 If you don't have this function configured, use try...... catch handles the error, at which point there is only an error message.
 
 ### encode
 
-编码 GIF 图片，得到一个 GIF 图片的 Uint8Array 形式的数据。参数如下：
+Encode the GIF image to get the data in the form of a Uint8Array of the GIF image. The parameters are as follows:
 
-* gifData: GifData--包含头信息、扩展信息、帧信息的对象，比较复杂，所以不建议使用 encode 方法，如果需要合成 GIF，使用 build 方法更好。
+* gifData: GifData--Objects that contain header information, extension information, and frame information are more complex, so it is not recommended to use the encode method, and if you need to generate GIF image, it is better to use the build method.
 
 ### build
 
-合成 GIF 图片，得到一个 GIF 图片的 Uint8Array 形式的数据。参数如下：
+Generate the GIF image in the form of a Uint8Array. The parameters are as follows:
 
-* data: ToBuildDataType--合成 GIF 所需要的数据。
+* data: ToBuildDataType--The data needed to generate GIF.
 
   ToBuildDataType：
   |key|value|optional|comment|
   |--|--|--|--|
-  |backgroundColor|string|yes|背景色，建议不填。默认黑色。|
-  |repetition|number|yes|循环次数，0 代表无限循环，默认 0。|
-  |dithering|boolean|yes|是否颜色抖动，颜色抖动可能会提高图片质量，但生成更耗时，默认 true|
-  |frames|Array\<ToBuildFrameDataType\>|true|帧数据|
+  |backgroundColor|string|yes|Background color, it is recommended not to fill in. Default black.|
+  |repetition|number|yes|The number of loops, 0 for infinite loops, defaults to 0.|
+  |dithering|boolean|yes|Whether the color is dithering or not, color dithering may improve the quality of the picture, but it is more time-consuming to generate, and the default is true|
+  |frames|Array\<ToBuildFrameDataType\>|true|The data of frames.|
 
   ToBuildFrameDataType:
   |key|value|optional|comment|
   |--|--|--|--|
-  |imageData|ImageData|false|帧图片的 ImageData 数据|
-  |delay|number|true|帧延迟(ms)。即当前帧渲染后多久渲染下一帧。值需要是 10 的倍数，默认 10。不建议小于 10，因为大部分浏览器和图片查看器不支持|
-  |disposalMethod|number|true|帧渲染之后的处理方式。1：保留，2：恢复背景色，3：回到上一帧状态。默认 1。|
-  |setLocalColorTable|boolean|yes|是否设置局部颜色表。默认 false|
+  |imageData|ImageData|false|The ImageData of frame|
+  |delay|number|true|Frame Delay (ms). That is, how long after the current frame is rendered the next frame. The value needs to be a multiple of 10, with the default being 10. It is not recommended to be less than 10 as most browsers and image viewers do not support it.|
+  |disposalMethod|number|true|How frames are processed after they are rendered. 1: Retain, 2: Restore the background color, 3: Return to the previous frame state. Default is 1.|
+  |setLocalColorTable|boolean|yes|Whether to set a local color table. The default is false.|
 
 ### getFrameImageData
 
-得到指定帧的 ImageData 数据（原始帧，非合成后的渲染帧），可能比较慢。参数如下：
+Get the raw data of frame, this may take some time. Parameters:
 
-* gifData: GifData--decode 后的 GIF 数据。
+* gifData: GifData
 
-* frameIndex: number--帧下标。
+* frameIndex: number
 
 ### getFramesImageData
 
-得到所有帧的 ImageData 数据（原始帧，非合成后的渲染帧），比较慢。参数如下：
+Get the raw data of all frames, this will take some time. Parameters:
 
-* gifData: GifData--decode 后的 GIF 数据。
+* gifData: GifData
 
 ### getCompositedFrameImageData
 
-得到指定帧的渲染 ImageData 数据，可能比较慢。参数同 getFrameImageData。
+Get the rendered ImageData data of the frame, this may take some time. The parameter is the same as getFrameImageData.
 
 ### getCompositedFramesImageData
 
-得到所有帧的渲染 ImageData 数据，比较慢。参数同 getFramesImageData。
+Get the rendered ImageData data of all frames, this will take some time. The parameter is the same as getFrameImageData.
 
-## 参考文档
+## Reference
 
 * [gif 格式图片详细解析](https://blog.csdn.net/wzy198852/article/details/17266507)
 * [GIF格式解析](https://www.jianshu.com/p/38743ef278ac)
