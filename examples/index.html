@@ -134,7 +134,8 @@
         frames: amz1.gifData.frames.map(item => {
           return {
             imageData: item.canvasImageData,
-            setLocalColorTable: true
+            delay: item.delay
+            // setLocalColorTable: true
           }
         })
       })

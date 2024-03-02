@@ -937,7 +937,7 @@ function build(data) {
                 gctStartByte: 0,
                 gctEndByte: 0,
                 bgIndex: 0,
-                pixelAspect: 1,
+                pixelAspect: 0,
                 gctList: [],
             },
             appExt: {
