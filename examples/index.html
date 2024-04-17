@@ -86,7 +86,7 @@
       const filterSelect = document.querySelector('#filter-select')
       filterSelect.addEventListener('change', changeFilter)
       function changeFilter() {
-        amz1._config.filter = AMZGif.filter[filterSelect.value]
+        amz1._config.filter = AMZGif.filters[filterSelect.value]
       }
     })
     
@@ -98,7 +98,7 @@
       if (!amz2) {
         return window.alert('请先选择gif文件')
       }
-      amz2._config.filter = AMZGif.filter[filterSelect2.value]
+      amz2._config.filter = AMZGif.filters[filterSelect2.value]
     }
     const fileInput = document.querySelector('#choose-input')
     fileInput.addEventListener('change', changeFile)

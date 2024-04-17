@@ -1492,13 +1492,8 @@ class GifPlayer {
         this._offscreenCtx = null;
         this._gifBuffer = null;
         this.gifData = null;
-        this._duration = 0;
         this._currFrame = -1;
-        this._repetitionTimes = 0;
-        // completed repetition times
-        this._repetition = 0;
-        // time of gif playing
-        this._time = 0;
+        this._nextUpdateTime = performance.now();
         this._rAFCallbackQueue = [];
         /**
          * loading gif
@@ -1568,6 +1563,7 @@ class GifPlayer {
         const img = this._imgEl;
         // get width and height
         const rect = img.getBoundingClientRect();
+        console.log(rect);
         this._config.width =
             typeof this._config.width === 'number' ? this._config.width : (_a = rect === null || rect === void 0 ? void 0 : rect.width) !== null && _a !== void 0 ? _a : 0;
         this._config.height =
@@ -1603,29 +1599,11 @@ class GifPlayer {
         }
     }
     /**
-     * 重启
-     * @param config
-     * @desc 重启播放器，可以更换 gif
-     */
-    restart(config) {
-        return __awaiter(this, void 0, void 0, function* () {
-            this._config = Object.assign(Object.assign(Object.assign({}, this._config), config), { el: this._config.el });
-            yield this.pause();
-            this._gifBuffer = null;
-            this.gifData = null;
-            this._duration = 0;
-            this._currFrame = -1;
-            this._time = 0;
-            this._repetition = 0;
-            yield this.play();
-        });
-    }
-    /**
      * @member play
      * play gif
      */
     play() {
-        var _a, _b, _c;
+        var _a, _b;
         return __awaiter(this, void 0, void 0, function* () {
             // check gifBuffer, if it is null, load gif first
             if (this._gifBuffer === null) {
@@ -1643,19 +1621,9 @@ class GifPlayer {
                 if (!temp || !temp.header.isGif)
                     return;
                 this.gifData = temp;
-                this._duration = temp.frames.reduce((prev, frame) => prev + frame.delay || 0, 0);
-                if (this._config.loop === true) {
-                    this._repetitionTimes = 0;
-                }
-                else if (this._config.loop === false) {
-                    this._repetitionTimes = 1;
-                }
-                else {
-                    this._repetitionTimes = ((_a = temp.appExt) === null || _a === void 0 ? void 0 : _a.repetitionTimes) || 0;
-                }
                 this._offscreenCanvas = document.createElement('canvas');
-                this._offscreenCanvas.width = (_b = this.gifData) === null || _b === void 0 ? void 0 : _b.header.width;
-                this._offscreenCanvas.height = (_c = this.gifData) === null || _c === void 0 ? void 0 : _c.header.height;
+                this._offscreenCanvas.width = (_a = this.gifData) === null || _a === void 0 ? void 0 : _a.header.width;
+                this._offscreenCanvas.height = (_b = this.gifData) === null || _b === void 0 ? void 0 : _b.header.height;
                 this._offscreenCtx = this._offscreenCanvas.getContext('2d');
             }
             if (isFunc(this._config.onBeforePlay)) {
@@ -1663,11 +1631,11 @@ class GifPlayer {
                 if (!res)
                     return;
             }
-            // if gif is ended, re-play
-            if (this._checkEnd()) {
-                this._repetition = 0;
-            }
             this.isPlaying = true;
+            this._nextUpdateTime = Math.max(this._nextUpdateTime, performance.now());
+            if (this._checkEnd()) {
+                this._currFrame = -1;
+            }
             if (isFunc(this._config.onPlay)) {
                 this._config.onPlay();
             }
@@ -1701,7 +1669,8 @@ class GifPlayer {
             return errMsgs.isRendering;
         this._currFrame = (this._currFrame + 1) % this.gifData.frames.length;
         this._renderFrame();
-        this._syncGIFTime();
+        this._nextUpdateTime =
+            performance.now() + this.gifData.frames[this._currFrame].delay / this._config.speed;
     }
     /**
      * play prev frame manually
@@ -1717,7 +1686,8 @@ class GifPlayer {
             this._currFrame = this.gifData.frames.length - 1;
         }
         this._renderFrame();
-        this._syncGIFTime();
+        this._nextUpdateTime =
+            performance.now() + this.gifData.frames[this._currFrame].delay / this._config.speed;
     }
     /**
      * jump
@@ -1736,7 +1706,6 @@ class GifPlayer {
         }
         this._currFrame = frameIndex;
         this._renderFrame();
-        this._time = performance.now();
     }
     /**
      * set speed
@@ -1747,32 +1716,6 @@ class GifPlayer {
             return true;
         }
         return false;
-    }
-    _syncGIFTime() {
-        var _a, _b;
-        if (this._currFrame === -1) {
-            this._time = 0;
-        }
-        else {
-            this._time = 0;
-            for (let i = 0; i < this._currFrame; i++) {
-                this._time += ((_b = (_a = this.gifData) === null || _a === void 0 ? void 0 : _a.frames[this._currFrame]) === null || _b === void 0 ? void 0 : _b.delay) || 0;
-            }
-        }
-    }
-    _getFrameIndexByTime() {
-        if (this._duration <= this._time) {
-            return this.gifData.frames.length - 1;
-        }
-        else {
-            let t = 0;
-            let f = 0;
-            while (t <= this._time) {
-                t += this.gifData.frames[f].delay;
-                f++;
-            }
-            return f - 1;
-        }
     }
     /**
      * togglePlay by
@@ -1790,7 +1733,7 @@ class GifPlayer {
     /**
      * update
      */
-    _update(time, timeOffset) {
+    _update(time) {
         if (!this.isPlaying ||
             this.isRendering ||
             !this.gifData ||
@@ -1798,18 +1741,10 @@ class GifPlayer {
             !this._offscreenCtx ||
             document.hidden)
             return;
-        this._time += timeOffset * this._config.speed;
-        // set time
-        // static image, infinite loop
-        if (this._duration === 0) {
-            this._time = 0;
-        }
-        else {
-            this._repetition += (this._time / this._duration) >> 0;
-            this._time %= this._duration;
-        }
-        this._currFrame = this._getFrameIndexByTime();
-        this._renderFrame();
+        // If the time has not yet arrived, no action
+        if (this._nextUpdateTime > time)
+            return;
+        this._currFrame++;
         if (this._checkEnd()) {
             this.isPlaying = false;
             if (isFunc(this._config.onEnd)) {
@@ -1818,6 +1753,22 @@ class GifPlayer {
             return;
         }
         this._renderFrame();
+        // set nextUpdateTime
+        while (this._nextUpdateTime <= time) {
+            this._nextUpdateTime += Math.max(this.gifData.frames[this._currFrame].delay / this._config.speed, 1);
+            if (this._nextUpdateTime <= time) {
+                this._currFrame++;
+                if (this._checkEnd()) {
+                    this.isPlaying = false;
+                    if (isFunc(this._config.onEnd)) {
+                        this._config.onEnd();
+                    }
+                    // render the last frame
+                    this._currFrame = this.gifData.frames.length - 1;
+                    this._renderFrame();
+                }
+            }
+        }
     }
     _renderFrame() {
         const gifData = this.gifData;
@@ -1834,13 +1785,16 @@ class GifPlayer {
         this.isRendering = false;
     }
     _checkEnd() {
-        // check repetition
-        if (!this._repetitionTimes || this._repetitionTimes > this._repetition) {
-            return false;
+        if (this._currFrame > this.gifData.frames.length - 1) {
+            if (this._config.loop !== false) {
+                this._currFrame = 0;
+                return false;
+            }
+            else {
+                return true;
+            }
         }
-        else {
-            return true;
-        }
+        return false;
     }
     /**
      * get gif data
@@ -2065,38 +2019,23 @@ function boxBlur(imgData, boxSize = 5) {
     tempImgData.data.set(imgData.data);
     // boxSize need be odd
     boxSize = isOdd(boxSize) ? boxSize : boxSize + 1;
-    const halfBoxSize = boxSize >> 1;
-    const boxLen = boxSize * boxSize;
     let x = 0;
     let y = 0;
-    let bx = 0;
-    let by = 0;
+    let box = new Uint8ClampedArray(boxSize * boxSize);
     let sum = 0;
     let avg = 0;
-    // rbg sum cache
-    const cache = [0, 0, 0];
     for (let i = 0, len = imgData.data.length; i < len; i += 4) {
         x = (i / 4) % imgData.width;
         y = (i / 4 / imgData.width) >> 0;
-        bx = x - halfBoxSize;
-        by = y - halfBoxSize;
         // rgb channels
         for (let c = 0; c < 3; c++) {
-            sum = cache[c];
-            // if the cell is the first of each row, calc full box
-            if (!x) {
-                sum = 0;
-                // count all box columns
-                for (let bxc = bx; bxc <= x + halfBoxSize; bxc++) {
-                    sum += getColumnSum(imgData, bxc, by, boxSize, c);
-                }
+            box = fillBoxPixels(imgData, x, y, box, boxSize, boxSize, c);
+            // box average
+            sum = 0;
+            for (let bi = 0, len = box.length; bi < len; bi++) {
+                sum += box[bi];
             }
-            else {
-                sum -= getColumnSum(imgData, bx - 1, by, boxSize, c);
-                sum += getColumnSum(imgData, x + halfBoxSize, by, boxSize, c);
-            }
-            cache[c] = sum;
-            avg = (sum / boxLen) >> 0;
+            avg = (sum / box.length) >> 0;
             if (avg < 0)
                 avg = 0;
             else if (avg > 255)
@@ -2105,31 +2044,6 @@ function boxBlur(imgData, boxSize = 5) {
         }
     }
     return tempImgData;
-}
-function getColumnSum(imgData, x, y, height, channel) {
-    let sum = 0;
-    for (let i = 0; i < height; i++) {
-        // out of bounds
-        if (x < 0 || y < 0 || x >= imgData.width || y >= imgData.height) {
-            // fix x
-            if (x < 0) {
-                x = 0;
-            }
-            else if (x >= imgData.width) {
-                x = imgData.width - 1;
-            }
-            // fix y
-            if (y < 0) {
-                y = 0;
-            }
-            else if (y >= imgData.height) {
-                y = imgData.height - 1;
-            }
-        }
-        sum += imgData.data[getIndexByPoint(imgData, x, y) + channel];
-        y++;
-    }
-    return sum;
 }
 
 // filters from https://www.jianshu.com/p/3122d9710bd8
@@ -2160,4 +2074,4 @@ function getCompositedFramesImageData(gifData) {
     });
 }
 
-export { GifPlayer, SkinBase, build, decode, encode, index as filter, generateFullCanvasImageData as getCompositedFrameImageData, getCompositedFramesImageData, generateRawImageData as getFrameImageData, getFramesImageData };
+export { GifPlayer, build, decode, encode, index as filters, generateFullCanvasImageData as getCompositedFrameImageData, getCompositedFramesImageData, generateRawImageData as getFrameImageData, getFramesImageData };

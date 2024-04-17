@@ -9,7 +9,7 @@ JavaScript GIF decoder、encoder、player.
 
 对于 GIF 图片，浏览器是原生支持的，但没有提供暂停、恢复播放等功能，当然也没有提供解码、编码功能。
 
-此包让播放 GIF 可以像播放视频一样进行暂停、恢复播放、上一帧、下一帧、倍速等操作。还可以解码得到每一帧的 ImageData，以及将几张图片合称为 GIF。
+此包让播放 GIF 可以像播放视频一样进行暂停、恢复播放、上一帧、下一帧、倍速等操作。还可以解码得到每一帧的 ImageData，以及将几张图片合成为 GIF。
 
 ## 功能
 
@@ -60,7 +60,7 @@ import {
   decode,
   encode, 
   build, 
-  filter, 
+  filters, 
   getFrameImageData, 
   getFramesImageData, 
   getCompositedFrameImageData, getCompositedFramesImageData
@@ -146,7 +146,7 @@ new GifPlayer(config)
 
   类型：Function
 
-  滤镜。可选。GifPlayer 类上自带了部分滤镜，也可以根据需求自己实现。
+  滤镜。可选。GifPlayer 类上自带了部分滤镜，也可以根据需求自己实现，或者使用 lena.js 和 image-filters-js 之类的库。
 
   ```
   const amz1 = new GifPlayer({
@@ -155,7 +155,7 @@ new GifPlayer(config)
     speed: 1,
     auto: true,
     skin: 'basic',
-    filter: filter.grayscale
+    filter: filters.grayscale
   })
   ```
   |滤镜|说明|
