@@ -1,21 +1,6 @@
 import { AnyFuncType, Config, EventFuncNameType, GifData } from './types';
 declare class GifPlayer {
     constructor(config: Config);
-    static filter: {
-        grayscale: typeof import("./filter/grayscale").default;
-        blackAndWhite: typeof import("./filter/blackAndWhite").default;
-        reverse: typeof import("./filter/reverse").default;
-        decolorizing: typeof import("./filter/decolorizing").default;
-        monochromeRed: typeof import("./filter/monochromeRed").default;
-        monochromeGreen: typeof import("./filter/monochromeGreen").default;
-        monochromeBlue: typeof import("./filter/monochromeBlue").default;
-        nostalgic: typeof import("./filter/nostalgic").default;
-        cast: typeof import("./filter/cast").default;
-        frozen: typeof import("./filter/frozen").default;
-        comic: typeof import("./filter/comic").default;
-        brown: typeof import("./filter/brown").default;
-        boxBlur: typeof import("./filter/boxBlur").default;
-    };
     speedList: number[];
     _config: Config;
     _imgEl: HTMLImageElement | null;

@@ -2,7 +2,7 @@ import decode from './decode'
 import encode from './encode'
 import build from './build'
 import GifPlayer from './player'
-import filter from './filter'
+import filters from './filters'
 import { generateRawImageData, generateFullCanvasImageData } from './utils/render'
 import { GifData } from './types'
 
@@ -58,5 +58,5 @@ export {
   /**
    * build-in filters
    */
-  filter,
+  filters,
 }
