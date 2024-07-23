@@ -79,6 +79,8 @@ export interface GifHeaderInfo {
  * gif frame data
  */
 export interface GifFrameData {
+  // does this frame contain Graphic Control Extension
+  gceFlag: boolean
   startByte: number
   endByte: number
   width: number
