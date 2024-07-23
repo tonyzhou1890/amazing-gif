@@ -61,6 +61,7 @@ export interface GifHeaderInfo {
  * gif frame data
  */
 export interface GifFrameData {
+    gceFlag: boolean;
     startByte: number;
     endByte: number;
     width: number;

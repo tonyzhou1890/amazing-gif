@@ -2,12 +2,7 @@ import decode from './decode';
 import encode from './encode';
 import build from './build';
 import GifPlayer from './player';
-<<<<<<< HEAD
-import filter from './filter';
-import SkinBase from './skin/base';
-=======
 import filters from './filters';
->>>>>>> dev
 import { generateRawImageData, generateFullCanvasImageData } from './utils/render';
 import { GifData } from './types';
 declare function getFramesImageData(gifData: GifData): ImageData[];
@@ -52,12 +47,4 @@ GifPlayer,
 /**
  * build-in filters
  */
-<<<<<<< HEAD
-filter, 
-/**
- * base skin. If you want customize your skin, you can
- */
-SkinBase, };
-=======
 filters, };
->>>>>>> dev

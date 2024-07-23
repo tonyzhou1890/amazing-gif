@@ -88,7 +88,8 @@ export default async function decode (
       const frame = readFrame(buf, readCtrl)
       // Graphic Control Extension may not be followed by Image Descriptor, i.e. last frame may not contain real image data
       const lastFrame = gifData.frames[gifData.frames.length - 1]
-      if (!lastFrame.endByte) {
+      if (lastFrame && !lastFrame.endByte) {
+        frame.gceFlag = lastFrame.gceFlag
         frame.startByte = lastFrame.startByte
         frame.disposalMethod = lastFrame.disposalMethod
         frame.userInputFlag = lastFrame.userInputFlag
@@ -260,6 +261,7 @@ function readAppExt (buf: Uint8Array, readCtrl: ReadCtrlType) {
  */
 function readFrame (buf: Uint8Array, readCtrl: ReadCtrlType) {
   const frameData: GifFrameData = {
+    gceFlag: false,
     startByte: readCtrl.ptr,
     endByte: 0,
     width: 0,
@@ -285,6 +287,7 @@ function readFrame (buf: Uint8Array, readCtrl: ReadCtrlType) {
   }
   // Graphic Control Extension
   if (buf[readCtrl.ptr] === 0x21 && buf[readCtrl.ptr + 1] === 0xf9) {
+    frameData.gceFlag = true
     readCtrl.ptr += 2
     const blockSize = buf[readCtrl.ptr]
     const endByte = readCtrl.ptr + blockSize + 1 // include end flag 0x00

@@ -196,7 +196,10 @@ class GifPlayer {
       const temp = await decode(this._gifBuffer, this._errCall)
       if (!temp || !temp.header.isGif) return
       this.gifData = temp
-      this._duration = temp.frames.reduce((prev, frame) => prev + frame.delay || 0, 0)
+      this._duration = temp.frames.reduce(
+        (prev, frame) => prev + (frame.gceFlag ? frame.delay || 0 : 100),
+        0
+      )
 
       if (this._config.loop === true) {
         this._repetitionTimes = 0
@@ -320,7 +323,8 @@ class GifPlayer {
       let t = 0
       let f = 0
       while (t <= this._time) {
-        t += this.gifData!.frames[f].delay
+        const frame = this.gifData!.frames[f]
+        t += frame.gceFlag ? frame.delay : 100
         f++
       }
       return f - 1
