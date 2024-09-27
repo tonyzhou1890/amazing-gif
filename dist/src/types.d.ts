@@ -170,6 +170,7 @@ export interface ToBuildDataType {
     repetition?: number;
     dithering?: boolean;
     frames: Array<ToBuildFrameDataType>;
+    optimizeFrames?: boolean;
 }
 /**
  * point

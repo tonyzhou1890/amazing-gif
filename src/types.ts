@@ -212,6 +212,8 @@ export interface ToBuildDataType {
   dithering?: boolean
   // frames
   frames: Array<ToBuildFrameDataType>
+  // optimize same pixels between frames
+  optimizeFrames?: boolean
 }
 
 /**

@@ -1038,22 +1038,25 @@ function build(data) {
             frame.imageEndByte = 0;
         });
         // set transparant color
-        const copyGifData = (yield worker({
-            action: 'replaceRepeatedIndices',
-            param: [gifData],
-        }));
+        let copyGifData;
+        if (data.optimizeFrames) {
+            copyGifData = (yield worker({
+                action: 'replaceRepeatedIndices',
+                param: [gifData],
+            }));
+        }
         // make nosense
         // reorderIndices(gifData)
         // reorderIndices(copyGifData)
         return new Promise((resolve) => {
-            Promise.all([encode(gifData), encode(copyGifData)]).then(res => {
+            Promise.all([encode(gifData), copyGifData ? encode(copyGifData) : undefined].filter(v => v)).then(res => {
                 const e1 = res[0];
                 const e2 = res[1];
-                if (e1.length < e2.length) {
-                    resolve(e1);
+                if (e2 && e1.length > e2.length) {
+                    resolve(e2);
                 }
                 else {
-                    resolve(e2);
+                    resolve(e1);
                 }
             });
         });

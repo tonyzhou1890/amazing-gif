@@ -141,23 +141,29 @@ export default async function build (data: ToBuildDataType) {
   })
 
   // set transparant color
-  const copyGifData = (await worker({
-    action: 'replaceRepeatedIndices',
-    param: [gifData],
-  })) as GifData
+  let copyGifData: GifData | undefined
+
+  if (data.optimizeFrames) {
+    copyGifData = (await worker({
+      action: 'replaceRepeatedIndices',
+      param: [gifData],
+    })) as GifData
+  }
 
   // make nosense
   // reorderIndices(gifData)
   // reorderIndices(copyGifData)
 
   return new Promise((resolve: (data: Uint8Array) => void) => {
-    Promise.all([encode(gifData), encode(copyGifData)]).then(res => {
+    Promise.all(
+      [encode(gifData), copyGifData ? encode(copyGifData) : undefined].filter(v => v)
+    ).then(res => {
       const e1 = res[0]
       const e2 = res[1]
-      if (e1.length < e2.length) {
-        resolve(e1)
-      } else {
+      if (e2 && e1!.length > e2.length) {
         resolve(e2)
+      } else {
+        resolve(e1!)
       }
     })
   })
