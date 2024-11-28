@@ -72,6 +72,7 @@ export default async function build (data: ToBuildDataType) {
     }
   })
 
+  const quantizedStart = performance.now()
   const quantizedFrames = await Promise.all(
     frameGroups.map(g => {
       return worker({
@@ -81,6 +82,7 @@ export default async function build (data: ToBuildDataType) {
     })
   )
 
+  console.log('quantized times: ', performance.now() - quantizedStart)
   console.log('quantizedFrames: ', quantizedFrames)
 
   frameGroups.map((g, gIdx) => {

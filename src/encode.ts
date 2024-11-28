@@ -1,5 +1,7 @@
 import { GifFrameData, GifData, GifEncodeData, GifHeaderInfo, AppExt } from './types'
 import { bufferGrow, setBits, getBitsByNum } from './utils/helpers'
+// import {  GifLZW as GifLZW2  } from './utils/lzw'
+// import { GifLZW } from './utils/lzw copy'
 import worker from './utils/promiseWorker'
 
 /**
@@ -143,6 +145,7 @@ async function writeFrames (data: GifEncodeData, frames: Array<GifFrameData>, gc
         param: [framesMinCodeSize[idx], frame.imageData],
         // there is no need of transferable in here, transferable buffer will cause detached buffer error when you call encode twice in a gifData
       })
+      // return GifLZW2.encode(framesMinCodeSize[idx], frame.imageData)
     })
   )
   console.log('encode frames buffer: ', window.performance.now() - s)

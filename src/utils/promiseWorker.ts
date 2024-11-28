@@ -2,6 +2,7 @@ import Worker from 'web-worker:./workerUtils.ts'
 import { WorkerJobType, WorkerJobWrapType } from '../types'
 
 const workerNum = Math.max(window.navigator.hardwareConcurrency - 1, 1) // 线程数量
+// const workerNum = 1 // 线程数量
 const quene = new Map()
 const waiting: Array<WorkerJobWrapType> = []
 const workers = new Array(workerNum).fill(null).map((_, index) => {

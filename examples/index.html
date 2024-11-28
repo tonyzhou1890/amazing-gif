@@ -11,6 +11,9 @@
       width: 150px;
       height: 100px;
     }
+    #example4 img {
+      width: 100px;
+    }
   </style>
 </head>
 <body>
@@ -68,6 +71,21 @@
   <h2>example3: 合成 example1 的 GIF</h2>
   <div>
     <button id="build-gif">合成 gif</button>
+  </div>
+  <h2>example4: 合成 GIF</h2>
+  <div>
+    <div id="example4" class="images">
+      <img src="./assets/img1.png" alt="">
+      <img src="./assets/img2.png" alt="">
+      <img src="./assets/img3.png" alt="">
+      <img src="./assets/img4.png" alt="">
+      <img src="./assets/img5.png" alt="">
+      <img src="./assets/img6.png" alt="">
+      <img src="./assets/img7.png" alt="">
+      <img src="./assets/img8.png" alt="">
+      <img src="./assets/img9.png" alt="">
+    </div>
+    <button id="example4-build-gif">合成 gif</button>
   </div>
   <script>
     // 样例1
@@ -135,6 +153,41 @@
           return {
             imageData: item.canvasImageData,
             delay: item.delay
+            // setLocalColorTable: true
+          }
+        })
+      })
+      console.log(res)
+      const blob = new Blob([res], { type: 'image/gif' })
+      const objUrl = URL.createObjectURL(blob)
+      window.open(objUrl)
+    })
+
+    // 生成 example4 gif
+    const example4BuildBtn = document.querySelector('#example4-build-gif')
+    example4BuildBtn.addEventListener('click', async () => {
+      const imgs = document.querySelector('#example4').children
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      const width = imgs[0].naturalWidth
+      const height = imgs[0].naturalHeight
+
+      const imgDataList = []
+      for (let i = 0; i < imgs.length; i++) {
+        canvas.width = width
+        canvas.height = height
+        ctx.drawImage(imgs[i], 0, 0)
+        imgDataList.push(ctx.getImageData(0, 0, width, height))
+      }
+
+      const res = await AMZGif.build({
+        repetition: 0,
+        dithering: true,
+        frames: imgDataList.map(item => {
+          return {
+            imageData: item,
+            delay: 100,
+            disposalMethod: 2
             // setLocalColorTable: true
           }
         })

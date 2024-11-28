@@ -1,5 +1,5 @@
 // https://www.cnblogs.com/jiang08/articles/3171319.html
-import { getBits, setBits } from './helpers'
+import { bufferGrow, getBits, setBits } from './helpers'
 
 export const GifLZW = {
   /**
@@ -103,9 +103,9 @@ export const GifLZW = {
     const encodeStart = performance.now()
     // generate original code table
     function genTable () {
-      const t = new Map()
+      const t = new StringTable()
       new Array(2 ** codeSize).fill(0).map((_, index) => {
-        t.set(String.fromCharCode(index), index)
+        t.set(new CharArray(index), index)
       })
       return t
     }
@@ -121,10 +121,12 @@ export const GifLZW = {
       }
       while (requiredBits) {
         if (8 - bitIdx >= requiredBits) {
+          // stream[byteIdx] = ((((1 << requiredBits) - 1) & code) << bitIdx) | stream[byteIdx]
           stream[byteIdx] = setBits(stream[byteIdx], bitIdx, requiredBits, code)
           bitIdx += requiredBits
           requiredBits = 0
         } else {
+          // stream[byteIdx] = ((((1 << 8 - bitIdx) - 1) & code) << bitIdx) | stream[byteIdx]
           stream[byteIdx] = setBits(stream[byteIdx], bitIdx, 8 - bitIdx, code)
           code = code >> (8 - bitIdx)
           requiredBits -= 8 - bitIdx
@@ -150,17 +152,17 @@ export const GifLZW = {
     let stream = new Uint8Array(4096)
     let byteIdx = 0
     let bitIdx = 0
-    let p = ''
-    let c = ''
+    let p = new CharArray()
+    let pc = new CharArray()
     // first code in data stream must be clear code
     write(clearCode)
 
     for (let i = 0, len = buf.length; i < len; i++) {
-      c = String.fromCharCode(buf[i])
-      if (table.has(p + c)) {
-        p = p + c
+      pc = p.clone().push(buf[i])
+      if (table.has(pc)) {
+        p = pc
       } else {
-        write(table.get(p))
+        write(table.get(p)!)
 
         if (tableLength === maxTableLength) {
           write(clearCode)
@@ -172,17 +174,16 @@ export const GifLZW = {
         } else if (tableLength === curBitMaxTableLength) {
           bitLength++
           curBitMaxTableLength = 2 ** bitLength
-          table.set(p + c, tableLength++)
+          table.set(pc, tableLength++)
         } else {
-          table.set(p + c, tableLength++)
+          table.set(pc, tableLength++)
         }
 
-        p = c
-        c = ''
+        p = new CharArray(buf[i])
       }
     }
-    if (p) {
-      write(table.get(p))
+    if (p.length) {
+      write(table.get(p)!)
     }
 
     write(endCode)
@@ -193,8 +194,124 @@ export const GifLZW = {
     } else {
       final = stream.slice(0, byteIdx)
     }
-
     console.log('encode time: ', performance.now() - encodeStart)
     return final
   },
+}
+
+/**
+ * lzw 压缩查找表
+ */
+class StringTable {
+  // 索引为字符长度，元素为该长度的 CharArray 数组
+  private groups: {
+    key: CharArray
+    value: number
+  }[][] = []
+
+  // 快速表，一个字节的数据可以直接根据索引查找
+  private fastTable = new Uint8Array(256)
+
+  set (key: CharArray, value: number) {
+    if (key.length === 1) {
+      this.fastTable[key.data[0]] = value
+    } else {
+      const existed = this._get(key)
+      if (existed !== undefined) {
+        existed.value = value
+      } else {
+        if (this.groups[key.length]) {
+          this.groups[key.length].push({
+            key,
+            value,
+          })
+        } else {
+          this.groups[key.length] = [
+            {
+              key,
+              value,
+            },
+          ]
+        }
+      }
+    }
+  }
+
+  get (key: CharArray) {
+    if (key.length === 1) {
+      return this.fastTable[key.data[0]]
+    }
+    return this._get(key)?.value
+  }
+
+  has (key: CharArray) {
+    return this.get(key) !== undefined
+  }
+
+  private _get (key: CharArray) {
+    const group = this.groups[key.length]
+    if (group) {
+      for (let i = 0; i < group.length; i++) {
+        if (group[i].key.equal(key)) return group[i]
+      }
+    }
+  }
+}
+
+/**
+ * 不需要优化了，各个浏览器引擎差异较大。
+ * 比如一张图在火狐需要 20s，可以优化到 5s，但在 edge 上，优化后反而需要 10s，而不优化只需要 2s。
+ */
+/**
+ * 字符串数组
+ */
+class CharArray {
+  constructor (num?: number) {
+    if (num !== undefined) {
+      this.push(num)
+    }
+  }
+
+  data: Uint8Array = new Uint8Array(10)
+  length = 0
+
+  push (num: number) {
+    this.data[this.length] = num
+    this.length++
+    if (this.length >= this.data.length) {
+      this.data = bufferGrow(this.data, 10)!
+    }
+    return this
+  }
+
+  // 调用次数多，比较耗时
+  equal (val: CharArray) {
+    if (val.length !== this.length) return false
+    for (let i = 0; i < val.length; i++) {
+      if (val.data[i] !== this.data[i]) return false
+    }
+    return true
+  }
+
+  reset (num?: number) {
+    this.length = 0
+    if (num !== undefined) {
+      this.push(num)
+    }
+    return this
+  }
+
+  // 调用次数多，比较耗时
+  clone () {
+    const temp = new CharArray()
+    if (this.data.length > temp.data.length) {
+      temp.data = new Uint8Array(this.data.length)
+    }
+    temp.data.set(this.data)
+    // for (let i = 0; i < this.length; i++) {
+    //   temp.data[i] = this.data[i]
+    // }
+    temp.length = this.length
+    return temp
+  }
 }

@@ -100,6 +100,23 @@ export default class Quantizer {
     return color
   }
 
+  /**
+   * get all colors
+   */
+  getColors () {
+    const nodes = this.levelNodes.flat().filter(v => v && v.isLeaf) as TreeNode[]
+    return nodes
+      .sort((a, b) => b.count - a.count)
+      .map(node => {
+        return {
+          r: (node.redSum / node.count) >> 0,
+          g: (node.greenSum / node.count) >> 0,
+          b: (node.blueSum / node.count) >> 0,
+          count: node.count,
+        }
+      })
+  }
+
   // reduce color
   private reduceColor () {
     /**

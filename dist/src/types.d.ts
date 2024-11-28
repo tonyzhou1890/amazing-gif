@@ -152,6 +152,13 @@ export interface WorkerJobWrapType {
 export interface ToBuildFrameDataType {
     imageData: ImageData;
     delay?: number;
+    /**
+     * disposal method--Indicates the way in which the graphic is to be treated after being displayed.
+     * 1 -   Do not dispose. The graphic is to be left in place.
+     * 2 -   Restore to background color. The area used by the graphic must be restored to the background color.
+     * 3 -   Restore to previous. The decoder is required to restore the area overwritten by the graphic with what was there prior to rendering the graphic.
+     * default 1
+     */
     disposalMethod?: number;
     setLocalColorTable?: boolean;
 }

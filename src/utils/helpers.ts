@@ -86,7 +86,7 @@ export function setBits (
  * @param num
  * @returns
  */
-export function bufferGrow (buf: ArrayBuffer, num?: number): ArrayBuffer | undefined {
+export function bufferGrow (buf: Uint8Array, num?: number) {
   if (!num) {
     num = 256
   }

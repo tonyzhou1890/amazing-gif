@@ -4,6 +4,7 @@ import build from './build'
 import GifPlayer from './player'
 import filters from './filters'
 import { generateRawImageData, generateFullCanvasImageData } from './utils/render'
+import Quantizer from './utils/octreeColorQuantization'
 import { GifData } from './types'
 
 function getFramesImageData (gifData: GifData): ImageData[] {
@@ -59,4 +60,8 @@ export {
    * build-in filters
    */
   filters,
+  /**
+   * 八叉树量化器
+   */
+  Quantizer,
 }

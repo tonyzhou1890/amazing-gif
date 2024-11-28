@@ -10,6 +10,15 @@ export default class Quantizer {
     levelNodes: Array<Array<TreeNode | null>>;
     addColor(r: number, g: number, b: number): void;
     getColor(r: number, g: number, b: number): Array<number>;
+    /**
+     * get all colors
+     */
+    getColors(): {
+        r: number;
+        g: number;
+        b: number;
+        count: number;
+    }[];
     private reduceColor;
     private deleteSubNodes;
 }

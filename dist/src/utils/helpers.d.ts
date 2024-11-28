@@ -57,4 +57,4 @@ export declare function setBits(targetNum: number, bitIdx: number, length: numbe
  * @param num
  * @returns
  */
-export declare function bufferGrow(buf: ArrayBuffer, num?: number): ArrayBuffer | undefined;
+export declare function bufferGrow(buf: Uint8Array, num?: number): Uint8Array | undefined;
